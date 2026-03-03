@@ -1,8 +1,7 @@
-from flask_sqlalchemy import SQLAlchemy
+from src.database import db
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema 
 from marshmallow import fields
 
-db = SQLAlchemy()
 
 
 class Paquete(db.Model):
