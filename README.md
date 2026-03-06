@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.13+-blue.svg)
 ![Flask](https://img.shields.io/badge/flask-%23000.svg?style=flat&logo=flask&logoColor=white)
-![MySQL](https://img.shields.io/badge/mysql-%2300f.svg?style=flat&logo=mysql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=flat&logo=postgresql&logoColor=white)
 
 ## 1. Descripción del Proyecto
 **World Cup Hub** es una plataforma orientada a la experiencia digital del Mundial de la FIFA 2026. Este servicio de backend gestiona la complejidad logística de un evento multinacional, proporcionando un núcleo informativo y operacional para aficionados y equipos de operaciones.
@@ -20,7 +20,7 @@ El sistema se centra en la **transparencia y trazabilidad**, registrando cada ev
 ## 3. Stack Tecnológico
 * **Lenguaje**: Python 3.13.
 * **Framework Web**: Flask.
-* **Persistencia**: SQLAlchemy ORM con soporte para MySQL.
+* **Persistencia**: SQLAlchemy ORM con soporte para PostgreSQL.
 * **Serialización**: Marshmallow-SQLAlchemy para la gestión de modelos y esquemas.
 * **Seguridad**: Autenticación mediante JWT (JSON Web Tokens) y hashing de contraseñas con Argon2.
 * **Pruebas**: Pytest y unittest.mock para validación de lógica de negocio.
@@ -37,4 +37,5 @@ src/
 ├── __init__.py        # Fábrica de la aplicación
 config.py              # Configuraciones de entorno (Development/Production)
 run.py                 # Punto de entrada para la ejecución del servidor
+
 
