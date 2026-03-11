@@ -10,6 +10,12 @@ class Payment(db.Model):
     date = db.Column(db.DateTime, nullable=False)
     amount = db.Column(db.Float, nullable=False)
     provider = db.Column(db.String(50), nullable=False)
+    ticketId = db.Column(db.Integer, db.ForeignKey('TICKET.ticketId'), nullable=False)
+    transferId = db.Column(db.Integer, db.ForeignKey('TRANSFER.transferId'), nullable=False)
+    userId = db.Column(db.Integer, db.ForeignKey('USER.userId'), nullable=False)
+    ticket = db.relationship('Ticket', backref='payments')
+    transfer = db.relationship('Transfer', backref='payments')
+    user = db.relationship('User', backref='payments')
     
     def create(self):
         db.session.add(self)

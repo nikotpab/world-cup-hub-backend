@@ -12,6 +12,8 @@ class User(db.Model):
     lastName = db.Column(db.String(20), nullable=False)
     email = db.Column(db.String(30), nullable=False)
     registeredAt = db.Column(db.DateTime, nullable=False)
+    roleId = db.Column(db.Integer, db.ForeignKey('ROLE.roleId'), nullable=False)
+    role = db.relationship('Role', backref='users')
     
     def create(self):
         db.session.add(self)

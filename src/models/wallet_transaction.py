@@ -10,6 +10,10 @@ class WalletTransaction(db.Model):
     date = db.Column(db.DateTime, nullable=False)
     type = db.Column(db.String(10), nullable=False)
     reason = db.Column(db.String(200), nullable=False)
+    walletId = db.Column(db.Integer, db.ForeignKey('WALLET.walletId'), nullable=False)
+    userId = db.Column(db.Integer, db.ForeignKey('USER.userId'), nullable=False)
+    wallet = db.relationship('Wallet', backref='transactions')
+    user = db.relationship('User', backref='wallet_transactions')
     
     def create(self):
         db.session.add(self)

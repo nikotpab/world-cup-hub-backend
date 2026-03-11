@@ -7,6 +7,8 @@ class Wallet(db.Model):
     
     walletId = db.Column(db.Integer, primary_key=True, autoincrement=True)
     balance = db.Column(db.Float, nullable=False)
+    userId = db.Column(db.Integer, db.ForeignKey('USER.userId'), nullable=False)
+    user = db.relationship('User', backref='wallets')
     
     def create(self):
         db.session.add(self)

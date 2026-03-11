@@ -10,6 +10,10 @@ class Ticket(db.Model):
     reservationDate = db.Column(db.DateTime, nullable=False)
     expirationDate = db.Column(db.DateTime, nullable=False)
     price = db.Column(db.Float, nullable=False)
+    matchId = db.Column(db.Integer, db.ForeignKey('MATCH.matchId'), nullable=False)
+    userId = db.Column(db.Integer, db.ForeignKey('USER.userId'), nullable=False)
+    match = db.relationship('Match', backref='tickets')
+    user = db.relationship('User', backref='tickets')
     
     def create(self):
         db.session.add(self)

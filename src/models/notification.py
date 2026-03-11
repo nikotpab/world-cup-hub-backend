@@ -7,6 +7,8 @@ class Notification(db.Model):
     
     notificationId = db.Column(db.Integer, primary_key=True, autoincrement=True)
     messageType = db.Column(db.String(30), nullable=False)
+    userId = db.Column(db.Integer, db.ForeignKey('USER.userId'), nullable=False)
+    user = db.relationship('User', backref='notifications')
     
     def create(self):
         db.session.add(self)

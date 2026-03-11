@@ -11,6 +11,8 @@ class NotificationHistory(db.Model):
     channel = db.Column(db.String(20), nullable=False)
     message = db.Column(db.String(200), nullable=False)
     errorCode = db.Column(db.Integer, nullable=False)
+    notificationId = db.Column(db.Integer, db.ForeignKey('NOTIFICATION.notificationId'), nullable=False)
+    notification = db.relationship('Notification', backref='history')
     
     def create(self):
         db.session.add(self)

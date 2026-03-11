@@ -9,6 +9,8 @@ class MatchEvent(db.Model):
     type = db.Column(db.String(1), nullable=False)
     description = db.Column(db.String(200), nullable=False)
     minute = db.Column(db.String(10), nullable=False)
+    matchId = db.Column(db.Integer, db.ForeignKey('MATCH.matchId'), nullable=False)
+    match = db.relationship('Match', backref='events')
     
     def create(self):
         db.session.add(self)
