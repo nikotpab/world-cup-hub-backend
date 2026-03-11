@@ -9,8 +9,6 @@ class Match(db.Model):
     status = db.Column(db.String(50), nullable=False)
     phase = db.Column(db.String(1), nullable=False)
     scheduledAt = db.Column(db.DateTime, nullable=False)
-    stadiumId = db.Column(db.Integer, db.ForeignKey('STADIUM.stadiumId'), nullable=False)
-    stadium = db.relationship('Stadium', backref='matches')
     
     def create(self):
         db.session.add(self)
