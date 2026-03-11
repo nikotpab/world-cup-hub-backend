@@ -12,6 +12,8 @@ class Audit(db.Model):
     affectedEntity = db.Column(db.String(30), nullable=False)
     action = db.Column(db.String(200), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False)
+    userId = db.Column(db.Integer, db.ForeignKey('USER.userId'), nullable=False)
+    user = db.relationship('User', backref='audits')
     
     def create(self):
         db.session.add(self)

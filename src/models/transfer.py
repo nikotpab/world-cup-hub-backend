@@ -7,6 +7,8 @@ class Transfer(db.Model):
     
     transferId = db.Column(db.Integer, primary_key=True, autoincrement=True)
     date = db.Column(db.DateTime, nullable=False)
+    userId = db.Column(db.Integer, db.ForeignKey('USER.userId'), nullable=False)
+    user = db.relationship('User', backref='transfers')
     
     def create(self):
         db.session.add(self)
