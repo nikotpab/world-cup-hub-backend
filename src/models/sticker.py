@@ -5,11 +5,13 @@ from marshmallow import fields
 class Sticker(db.Model):
     __tablename__ = "STICKER"
     
-    stickerId = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    category = db.Column(db.String(20), nullable=False)
-    name = db.Column(db.String(50), nullable=False)
-    rarity = db.Column(db.String(1), nullable=False)
-    team = db.Column(db.String(20), nullable=False)
+    stickerId = db.Column('card_id', db.Integer, primary_key=True, autoincrement=True)
+    category = db.Column('category', db.String(200), nullable=False)
+    name = db.Column('name', db.String(200), nullable=False)
+    rarity = db.Column('rarity', db.String(200), nullable=False)
+    team = db.Column('team', db.String(200), nullable=False)
+    raretyCatId = db.Column('RARYTY_CAT_rarety_cat_id', db.Integer, db.ForeignKey('RARYTY_CAT.rarety_cat_id'), nullable=False)
+    rarityCat = db.relationship('RarityCat', backref='stickers')
     
     def create(self):
         db.session.add(self)

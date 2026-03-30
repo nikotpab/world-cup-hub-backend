@@ -5,10 +5,21 @@ from marshmallow import fields
 class TicketHistory(db.Model):
     __tablename__ = "TICKET_HISTORY"
     
-    historyId = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    status = db.Column(db.String(1), nullable=False)
-    reason = db.Column(db.String(200), nullable=False)
-    changedAt = db.Column(db.DateTime, nullable=False)
+    historyId = db.Column('id_ticked_history', db.Integer, primary_key=True, autoincrement=True)
+    status = db.Column('status', db.String(50), nullable=False)
+    reason = db.Column('reason', db.String(4000), nullable=False)
+    changedAt = db.Column('changedAt', db.DateTime, nullable=False)
+    ticketId = db.Column('TICKET_ticket_id', db.Integer, nullable=False)
+    userId = db.Column('TICKET_USER_user_id', db.Integer, nullable=False)
+    
+    __table_args__ = (
+        db.ForeignKeyConstraint(
+            ['TICKET_ticket_id', 'TICKET_USER_user_id'],
+            ['TICKET.ticket_id', 'TICKET.USER_user_id']
+        ),
+    )
+    
+    ticket = db.relationship('Ticket', backref='history')
     
     def create(self):
         db.session.add(self)
