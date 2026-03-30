@@ -3,11 +3,11 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from marshmallow import fields
 
 class Transfer(db.Model):
-    __tablename__ = "TRANSFER"
+    __tablename__ = "TRANFER"
     
-    transferId = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    date = db.Column(db.DateTime, nullable=False)
-    userId = db.Column(db.Integer, db.ForeignKey('USER.userId'), nullable=False)
+    transferId = db.Column('transfer_id', db.Integer, primary_key=True, autoincrement=True)
+    date = db.Column('date', db.DateTime, nullable=False)
+    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
     user = db.relationship('User', backref='transfers')
     
     def create(self):
