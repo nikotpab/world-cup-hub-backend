@@ -3,15 +3,13 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from marshmallow import fields
 
 class NotificationHistory(db.Model):
-    __tablename__ = "NOTIFICATION_HISTORY"
+    __tablename__ = "NOTIFI_HISTORY"
     
-    historyId = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    status = db.Column(db.String(1), nullable=False)
-    date = db.Column(db.DateTime, nullable=False)
-    channel = db.Column(db.String(20), nullable=False)
-    message = db.Column(db.String(200), nullable=False)
-    errorCode = db.Column(db.Integer, nullable=False)
-    notificationId = db.Column(db.Integer, db.ForeignKey('NOTIFICATION.notificationId'), nullable=False)
+    historyId = db.Column('notification_history_id', db.Integer, primary_key=True, autoincrement=True)
+    status = db.Column('status', db.String(50), nullable=False)
+    date = db.Column('date', db.DateTime, nullable=False)
+    channel = db.Column('payment_channel', db.String(50), nullable=False)
+    notificationId = db.Column('NOTIFICATION_notification_id', db.Integer, db.ForeignKey('NOTIFICATION.notification_id'), nullable=False)
     notification = db.relationship('Notification', backref='history')
     
     def create(self):

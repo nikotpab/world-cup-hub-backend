@@ -5,10 +5,10 @@ from marshmallow import fields
 class Event(db.Model):
     __tablename__ = "EVENT"
     
-    eventId = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    type = db.Column(db.String(1), nullable=False)
-    description = db.Column(db.String(200), nullable=False)
-    auditId = db.Column(db.Integer, db.ForeignKey('AUDIT.auditId'), nullable=False)
+    eventId = db.Column('event_id', db.Integer, primary_key=True, autoincrement=True)
+    type = db.Column('type', db.String(100), nullable=False)
+    description = db.Column('description', db.String(200), nullable=False)
+    auditId = db.Column('AUDIT_audit_id', db.Integer, db.ForeignKey('AUDIT.audit_id'), nullable=False)
     audit = db.relationship('Audit', backref='events')
     
     def create(self):
