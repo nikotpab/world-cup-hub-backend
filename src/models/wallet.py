@@ -5,9 +5,9 @@ from marshmallow import fields
 class Wallet(db.Model):
     __tablename__ = "WALLET"
     
-    walletId = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    balance = db.Column(db.Float, nullable=False)
-    userId = db.Column(db.Integer, db.ForeignKey('USER.userId'), nullable=False)
+    walletId = db.Column('wallet_id', db.Integer, primary_key=True)
+    balance = db.Column('balance', db.Float, nullable=True)
+    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), primary_key=True, nullable=False)
     user = db.relationship('User', backref='wallets')
     
     def create(self):
