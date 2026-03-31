@@ -22,7 +22,7 @@ The system emphasizes **transparency and traceability**, recording every relevan
 ## 3. Technology Stack
 
 * **Language**: Python 3.13
-* **Web Framework**: Flask
+* **Web Framework**: Flutter
 * **Persistence**: SQLAlchemy ORM with PostgreSQL support
 * **Serialization**: Marshmallow-SQLAlchemy for model and schema management
 * **Security**: JWT (JSON Web Tokens) authentication and password hashing with Argon2
