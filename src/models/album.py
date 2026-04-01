@@ -4,7 +4,8 @@ from marshmallow import fields
 
 sticker_album = db.Table('STICKER_ALBUM',
     db.Column('STICKER_card_id', db.Integer, db.ForeignKey('STICKER.card_id'), primary_key=True),
-    db.Column('ALBUM_album_id', db.Integer, db.ForeignKey('ALBUM.album_id'), primary_key=True)
+    db.Column('ALBUM_album_id', db.Integer, db.ForeignKey('ALBUM.album_id'), primary_key=True),
+    extend_existing=True
 )
 
 class Album(db.Model):
