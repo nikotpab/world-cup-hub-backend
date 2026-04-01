@@ -27,7 +27,10 @@ class ValidationError(Exception):
         super().__init__(message)
         self.status_code = status_code
 
-env_key = os.getenv('JWT_SECRET_KEY', 'clave_desarrollo_insegura_larga_de_32_bytes_x')
+env_key = os.getenv('JWT_SECRET_KEY')
+if not env_key:
+    env_key = "development_key" * 3
+
 JWT_SECRET_KEYS = [key.strip() for key in env_key.split(',') if key.strip()]
 
 JWT_ALGORITHM = 'HS256'
