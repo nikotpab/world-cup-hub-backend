@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from passlib.hash import argon2
+from argon2 import PasswordHasher
+
+ph = PasswordHasher()
 import jwt
 import datetime
 from src.services.AuthenticationService import AuthenticationService, AuthenticationError, ValidationError, JWT_SECRET_KEYS
@@ -33,7 +35,7 @@ class TestAuthenticationService:
 
     def test_login_success(self, mock_db_cursor):
         mock_cur, mock_conn = mock_db_cursor
-        setup_hashed_pw = argon2.hash("SecurePass123!")
+        setup_hashed_pw = ph.hash("SecurePass123!")
         
         mock_cur.fetchone.side_effect = [
             None,
@@ -58,7 +60,7 @@ class TestAuthenticationService:
         
     def test_login_invalid_credentials(self, mock_db_cursor):
         mock_cur, _ = mock_db_cursor
-        setup_hashed_pw = argon2.hash("SecurePass123!")
+        setup_hashed_pw = ph.hash("SecurePass123!")
         
         mock_cur.fetchone.side_effect = [
             None,
