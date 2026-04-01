@@ -4,7 +4,8 @@ from marshmallow import fields
 
 sta_nat = db.Table('STA_NAT',
     db.Column('NATIONAL_TEAM_national_team_id', db.Integer, db.ForeignKey('NATIONAL_TEAM.national_team_id'), primary_key=True),
-    db.Column('STADIUM_stadium_id', db.Integer, db.ForeignKey('STADIUM.stadium_id'), primary_key=True)
+    db.Column('STADIUM_stadium_id', db.Integer, db.ForeignKey('STADIUM.stadium_id'), primary_key=True),
+    extend_existing=True
 )
 
 class NationalTeam(db.Model):

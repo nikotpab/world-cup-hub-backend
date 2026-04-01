@@ -11,7 +11,7 @@ class WalletTransaction(db.Model):
     type = db.Column('type', db.String(50), nullable=False)
     reason = db.Column('reason', db.String(4000), nullable=False)
     walletId = db.Column('WALLET_wallet_id', db.Integer, primary_key=True, nullable=False)
-    userId = db.Column('WALLET_user_id', db.Integer, primary_key=True, nullable=False)
+    userId = db.Column('WALLET_user_id', db.Integer, db.ForeignKey('USER.user_id'), primary_key=True, nullable=False)
     
     __table_args__ = (
         db.ForeignKeyConstraint(
