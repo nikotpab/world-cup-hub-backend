@@ -1,29 +1,38 @@
 import re
 import datetime
 import logging
+import os
 from typing import Optional, Tuple, Dict, Any
-from passlib.hash import argon2
 import jwt
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+
 try:
     from src.database import get_db
 except ImportError:
-
     def get_db():
         pass
+    
 logger = logging.getLogger(__name__)
 
-class AuthenticationError(Exception):
+ph = PasswordHasher()
 
+class AuthenticationError(Exception):
     def __init__(self, message: str, status_code: int=401):
         super().__init__(message)
         self.status_code = status_code
 
 class ValidationError(Exception):
-
     def __init__(self, message: str, status_code: int=400):
         super().__init__(message)
         self.status_code = status_code
-JWT_SECRET_KEYS = ['current_secret_key_12345', 'old_secret_key_qwerty']
+
+env_key = os.getenv('JWT_SECRET_KEY')
+if not env_key:
+    env_key = "development_key" * 3
+
+JWT_SECRET_KEYS = [key.strip() for key in env_key.split(',') if key.strip()]
+
 JWT_ALGORITHM = 'HS256'
 MAX_LOGIN_ATTEMPTS = 5
 
@@ -75,7 +84,8 @@ class AuthenticationService:
             cur.execute('SELECT id FROM accounts WHERE username = %s OR email = %s', (username, email))
             if cur.fetchone():
                 raise ValidationError('Username or email already exists', 409)
-            hashed_pw = argon2.hash(password)
+            
+            hashed_pw = ph.hash(password)
             cur.execute('INSERT INTO accounts (username, password, email) VALUES (%s, %s, %s)', (username, hashed_pw, email))
             conn.commit()
             return (True, 'Account registered successfully')
@@ -100,7 +110,15 @@ class AuthenticationService:
             AuthenticationService._check_rate_limit(username, cur)
             cur.execute('SELECT id, username, password FROM accounts WHERE username = %s', (username,))
             account = cur.fetchone()
-            if account and argon2.verify(password, account['password']):
+            
+            is_valid = False
+            if account:
+                try:
+                    is_valid = ph.verify(account['password'], password)
+                except VerifyMismatchError:
+                    is_valid = False
+            
+            if is_valid:
                 token = AuthenticationService.generate_token(account['id'])
                 return {'user': account['username'], 'token': token}
             else:
