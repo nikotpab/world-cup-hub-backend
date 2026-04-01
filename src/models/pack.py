@@ -4,7 +4,8 @@ from marshmallow import fields
 
 pack_sticker = db.Table('PACK_STICKER',
     db.Column('STICKER_card_id', db.Integer, db.ForeignKey('STICKER.card_id'), primary_key=True),
-    db.Column('PACK_pakage_id', db.Integer, db.ForeignKey('PACK.pakage_id'), primary_key=True)
+    db.Column('PACK_pakage_id', db.Integer, db.ForeignKey('PACK.pakage_id'), primary_key=True),
+    extend_existing=True
 )
 
 class Pack(db.Model):

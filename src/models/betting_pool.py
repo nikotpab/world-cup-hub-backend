@@ -5,7 +5,8 @@ from marshmallow import fields
 user_bett = db.Table('USER_BETT',
     db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), primary_key=True),
     db.Column('BETTING_POOL_betting_team_id', db.Integer, db.ForeignKey('BETTING_POOL.betting_team_id'), primary_key=True),
-    db.Column('is_admin', db.String(1), nullable=False)
+    db.Column('is_admin', db.String(1), nullable=False),
+    extend_existing=True
 )
 
 class BettingPool(db.Model):
