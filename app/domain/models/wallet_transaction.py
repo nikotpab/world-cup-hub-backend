@@ -1,0 +1,25 @@
+from app.infrastructure.database import db
+
+class WalletTransaction(db.Model):
+    __tablename__ = "WALLET_TRANSACTION"
+    
+    transactionId = db.Column('id_wallet_movement', db.Integer, primary_key=True)
+    amount = db.Column('amount', db.Float, nullable=False)
+    date = db.Column('date', db.DateTime, nullable=False)
+    type = db.Column('type', db.String(50), nullable=False)
+    reason = db.Column('reason', db.String(4000), nullable=False)
+    walletId = db.Column('WALLET_wallet_id', db.Integer, primary_key=True, nullable=False)
+    userId = db.Column('WALLET_user_id', db.Integer, db.ForeignKey('USER.user_id'), primary_key=True, nullable=False)
+    
+    __table_args__ = (
+        db.ForeignKeyConstraint(
+            ['WALLET_wallet_id', 'WALLET_user_id'],
+            ['WALLET.wallet_id', 'WALLET.USER_user_id']
+        ),
+    )
+    
+    wallet = db.relationship('Wallet', backref=db.backref('transactions', overlaps="wallet_transactions,user"))
+    user = db.relationship('User', backref=db.backref('wallet_transactions', overlaps="transactions,wallet"), overlaps="wallet")
+        db.session.add(self)
+        db.session.commit()
+        return self

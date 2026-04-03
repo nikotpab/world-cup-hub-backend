@@ -1,17 +1,27 @@
-FROM python:3.9-slim
+# ---- Etapa 1: Builder ----
+FROM python:3.11-alpine AS builder
+WORKDIR /install
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-WORKDIR /app
+# Instalar dependencias del SO necesarias para compilar (ej: psycopg2, gevent)
+RUN apk add --no-cache gcc musl-dev postgresql-dev libffi-dev
 
 COPY requirements.txt .
+RUN pip install --prefix=/install --no-cache-dir -r requirements.txt
 
-RUN apt-get update && apt-get install -y default-libmysqlclient-dev pkg-config gcc && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir -r requirements.txt
+# ---- Etapa 2: Runner ----
+FROM python:3.11-alpine
+WORKDIR /app
 
+# Instalar solo dependencias runtime (libpq para postgres)
+RUN apk add --no-cache libpq
+
+# Copiar paquetes compilados desde el builder
+COPY --from=builder /install /usr/local
 COPY . .
 
-EXPOSE 5000
+# Seguridad: Ejecutar como usuario no root
+RUN adduser -D nonrootuser
+USER nonrootuser
 
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "run:app"]
+EXPOSE 8000
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--worker-class", "gevent", "-w", "4", "run:app"]
