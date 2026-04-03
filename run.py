@@ -1,6 +1,6 @@
-from src import __init__
+from app import create_app
 
-app = __init__()
+app = create_app()
 
 if __name__ == "__main__":
     app.run()

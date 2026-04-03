@@ -1,0 +1,10 @@
+from app.infrastructure.database import db
+
+class Role(db.Model):
+    __tablename__ = "ROLE"
+    
+    roleId = db.Column('role_id', db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column('name', db.String(200), nullable=False)
+        db.session.add(self)
+        db.session.commit()
+        return self
