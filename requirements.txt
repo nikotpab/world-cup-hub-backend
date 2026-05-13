@@ -42,3 +42,5 @@ pydantic==2.6.4
 redis==5.0.3
 PyJWT==2.12.1
 email-validator==2.1.1
+firebase-admin==6.5.0
+sendgrid==6.11.0
