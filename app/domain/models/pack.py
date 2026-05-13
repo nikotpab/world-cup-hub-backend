@@ -11,7 +11,7 @@ class Pack(db.Model):
     
     packId = db.Column('pakage_id', db.Integer, primary_key=True, autoincrement=True)
     openedAt = db.Column('aperture_date', db.DateTime, nullable=False)
-    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
+    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('usuario.id_usuario'), nullable=False)
     user = db.relationship('User', backref='packs')
     stickers = db.relationship('Sticker', secondary='PACK_STICKER', backref='packs')
 

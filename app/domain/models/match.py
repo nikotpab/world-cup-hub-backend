@@ -1,4 +1,6 @@
 from app.infrastructure.database import db
+from app.domain.models.stadium import Stadium
+from app.domain.models.national_team import NationalTeam
 
 class Match(db.Model):
     __tablename__ = "MATCH"

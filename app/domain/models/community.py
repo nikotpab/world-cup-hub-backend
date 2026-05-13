@@ -1,7 +1,7 @@
 from app.infrastructure.database import db
 
 user_community = db.Table('USER_COMMUNITY',
-    db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), primary_key=True),
+    db.Column('USER_user_id', db.Integer, db.ForeignKey('usuario.id_usuario'), primary_key=True),
     db.Column('COMMUNITY_community_id', db.Integer, db.ForeignKey('COMMUNITY.community_id'), primary_key=True),
     db.Column('is_admin', db.String(1), nullable=False, default='0'),
     extend_existing=True
