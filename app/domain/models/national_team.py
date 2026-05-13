@@ -15,6 +15,8 @@ class NationalTeam(db.Model):
     teamId = db.Column('TEAM_id_team', db.Integer, db.ForeignKey('TEAM.id_team'), nullable=False)
     stadiums = db.relationship('Stadium', secondary='STA_NAT', backref='national_teams')
     team = db.relationship('Team', backref='national_team')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

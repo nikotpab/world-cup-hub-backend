@@ -1,44 +1,65 @@
 # World Cup Hub - Backend Service
 
-![Python](https://img.shields.io/badge/python-3.13+-blue.svg)
-![Flask](https://img.shields.io/badge/flask-%23000.svg?style=flat\&logo=flask\&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=flat\&logo=postgresql\&logoColor=white)
+The backend service for the World Cup Hub platform provides a robust API to manage the logistical and operational requirements of the FIFA World Cup 2026.
 
-## 1. Project Description
+## Project Overview
 
-**World Cup Hub** is a platform focused on the digital experience of the FIFA World Cup 2026. This backend service manages the logistical complexity of a multinational event, providing an informational and operational core for fans and operations teams.
+World Cup Hub manages the complexity of a multinational event, serving as the informational and operational core for both fans and administrative teams. The system prioritizes transparency and traceability, ensuring all relevant events are recorded in an auditable manner.
 
-The system emphasizes **transparency and traceability**, recording every relevant event (schedule changes, notifications, transfers) in an auditable manner.
+## Key Features
 
-## 2. Key Features (MVP)
+- **User Management**: Authentication and personal preference synchronization.
+- **Match Tracking**: Integration of tournament data, including team statistics and real-time match results.
+- **Prediction Pools**: A social gaming module with automated point calculations and rankings.
+- **Digital Album**: A sticker collection system featuring pack openings and a trading marketplace.
+- **Ticketing and Payments**: End-to-end lifecycle management of ticket reservations and payments with state-based traceability.
+- **Auditing**: Comprehensive transaction logging for compliance and investigation.
 
-* **User and Preferences Management**: Registration, login, and configuration of personal schedules based on favorite teams and venues.
-* **Match Tracking**: Ingestion of data from external providers regarding teams, matches, and real-time results.
-* **Football Prediction Pools Module**: Social prediction game with a points system, including automatic score calculation and rankings.
-* **Digital Album**: Sticker collection system with pack opening and user-to-user trading within the community.
-* **Ticketing and Payments**: Management of the ticket lifecycle (Available → Reserved → Paid) with traceable state transitions.
-* **Auditing and Support**: Transaction logging for case investigation and compliance.
+## Technical Stack
 
-## 3. Technology Stack
+- **Language**: Python 3.13
+- **Framework**: Flask
+- **ORM**: SQLAlchemy with PostgreSQL support
+- **Serialization**: Marshmallow-SQLAlchemy
+- **Security**: JWT (JSON Web Tokens) and Argon2 password hashing
+- **Testing**: Pytest and unittest.mock
 
-* **Language**: Python 3.13
-* **Web Framework**: Flutter
-* **Persistence**: SQLAlchemy ORM with PostgreSQL support
-* **Serialization**: Marshmallow-SQLAlchemy for model and schema management
-* **Security**: JWT (JSON Web Tokens) authentication and password hashing with Argon2
-* **Testing**: Pytest and unittest.mock for business logic validation
+## Architecture and Structure
 
-## 4. Project Structure
+The service follows a layered architecture to ensure separation of concerns:
 
-The backend follows a service-oriented architecture with a clear separation of concerns:
+- `app/`: Primary application package.
+  - `application/`: Application-specific business logic.
+  - `domain/`: Core entities and domain logic.
+  - `infrastructure/`: Persistence, database configuration, and external integrations.
+  - `presentation/`: API endpoints and request handling.
+- `tests/`: Comprehensive test suite for business logic validation.
+- `config.py`: Environment-specific configurations.
+- `run.py`: Application entry point.
 
-```text
-src/
-├── database/          # Database and persistence configuration
-├── models/            # Domain entity definitions (User, Match, Ticket, etc.)
-├── services/          # Business logic and services (AuthenticationService)
-├── test/              # Unit test suite and mocks
-├── __init__.py        # Application factory
-config.py              # Environment configurations (Development/Production)
-run.py                 # Server entry point
+## Getting Started
+
+1. Set up a virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Configure environment variables in a `.env` file (refer to `config.py`).
+
+4. Execute the service:
+   ```bash
+   python run.py
+   ```
+
+## Development and Testing
+
+To run the automated test suite:
+```bash
+pytest
 ```

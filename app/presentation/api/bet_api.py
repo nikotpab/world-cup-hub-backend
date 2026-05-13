@@ -1,33 +1,32 @@
 from flask import Blueprint, request, jsonify
-from app.application.services.betting_service import BettingService
-from app.infrastructure.repositories.betting_repository import SqlAlchemyBettingRepository
+from app.application.services.bet_service import BetService
+from app.infrastructure.repositories.bet_repository import SqlAlchemyBetRepository
 from app.presentation.middlewares.idempotency import idempotent_request
 from pydantic import ValidationError
 
-betting_bp = Blueprint('betting_bp', __name__)
+bet_bp = Blueprint('bet_bp', __name__)
 
-betting_repo = SqlAlchemyBettingRepository()
-betting_service = BettingService(betting_repo)
+bet_repo = SqlAlchemyBetRepository()
+bet_service = BetService(bet_repo)
 
-@betting_bp.route('/pools/<int:pool_id>/predictions', methods=['POST'])
+@bet_bp.route('/bets', methods=['POST'])
 @idempotent_request()
-def create_prediction(pool_id):
+def create_bet():
     try:
         data = request.get_json()
-        data['bettingPoolId'] = pool_id
-        result = betting_service.create_prediction(data)
+        result = bet_service.create_bet(data)
         return jsonify(result.model_dump()), 201
     except ValidationError as e:
         return jsonify({"error": "ERR_VALIDATION", "details": e.errors()}), 400
     except ValueError as e:
         return jsonify({"error": "ERR_BAD_REQUEST", "message": str(e)}), 400
 
-@betting_bp.route('/predictions/<int:prediction_id>', methods=['PUT', 'PATCH'])
+@bet_bp.route('/bets/<int:bet_id>', methods=['PUT', 'PATCH'])
 @idempotent_request()
-def update_prediction(prediction_id):
+def update_bet(bet_id):
     try:
         data = request.get_json()
-        result = betting_service.update_prediction(prediction_id, data)
+        result = bet_service.update_bet(bet_id, data)
         return jsonify(result.model_dump()), 200
     except ValidationError as e:
         return jsonify({"error": "ERR_VALIDATION", "details": e.errors()}), 400

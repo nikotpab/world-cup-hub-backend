@@ -5,6 +5,8 @@ class Team(db.Model):
     
     teamId = db.Column('id_team', db.Integer, primary_key=True, autoincrement=True)
     name = db.Column('name', db.String(4000), nullable=False)
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

@@ -13,6 +13,8 @@ class Album(db.Model):
     userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
     user = db.relationship('User', backref='albums')
     stickers = db.relationship('Sticker', secondary='STICKER_ALBUM', backref='albums')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

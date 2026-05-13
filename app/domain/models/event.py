@@ -8,6 +8,8 @@ class Event(db.Model):
     description = db.Column('description', db.String(200), nullable=False)
     auditId = db.Column('AUDIT_audit_id', db.Integer, db.ForeignKey('AUDIT.audit_id'), nullable=False)
     audit = db.relationship('Audit', backref='events')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self
