@@ -19,4 +19,33 @@ class TicketService:
 
     def get_user_tickets(self, user_id: int) -> List[TicketResponseDTO]:
         tickets = self.repository.get_by_user(user_id)
-        return [TicketResponseDTO(**t) for t in tickets]
+
+        # Generar datos provistos por backend para el MVP si la BD está vacía
+        if not tickets:
+            from datetime import datetime, timedelta
+            return [
+                TicketResponseDTO(
+                    ticketId=1,
+                    status="Reservada",
+                    price=150.0,
+                    expirationDate=datetime.utcnow() + timedelta(days=5),
+                    matchId=45,
+                    userId=user_id,
+                    match_details="Colombia vs Alemania",
+                    stadium="Estadio Azteca, CDMX",
+                    date_display="15 Jun 2026 - 18:00"
+                ),
+                TicketResponseDTO(
+                    ticketId=2,
+                    status="Pagada",
+                    price=200.0,
+                    expirationDate=datetime.utcnow() + timedelta(days=10),
+                    matchId=46,
+                    userId=user_id,
+                    match_details="Argentina vs España",
+                    stadium="Estadio MetLife, CDMX",
+                    date_display="18 Jun 2026 - 20:00"
+                )
+            ]
+
+        return [TicketResponseDTO(**ticket) for ticket in tickets]
