@@ -16,6 +16,7 @@ def create_app(config_class=DevelopmentConfig):
     from app.presentation.api.community_api import community_bp
     from app.presentation.api.bet_api import bet_bp
     from app.presentation.api.admin_api import admin_bp
+    from app.presentation.api.auth_api import auth_bp
     
     app.register_blueprint(user_bp, url_prefix='/api/v1')
     app.register_blueprint(match_bp, url_prefix='/api/v1')
@@ -24,6 +25,7 @@ def create_app(config_class=DevelopmentConfig):
     app.register_blueprint(community_bp, url_prefix='/api/v1')
     app.register_blueprint(bet_bp, url_prefix='/api/v1')
     app.register_blueprint(admin_bp, url_prefix='/api/v1')
+    app.register_blueprint(auth_bp, url_prefix='/api/v1')
     
     from sqlalchemy.exc import SQLAlchemyError
     
