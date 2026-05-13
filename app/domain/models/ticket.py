@@ -9,6 +9,6 @@ class Ticket(db.Model):
     expirationDate = db.Column('expiration_date', db.DateTime, nullable=False)
     price = db.Column('price', db.Float, nullable=False)
     matchId = db.Column('MATCH_match_id', db.Integer, db.ForeignKey('MATCH.match_id'), nullable=False)
-    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), primary_key=True, nullable=False)
+    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('usuario.id_usuario'), primary_key=True, nullable=False)
     match = db.relationship('Match', backref='tickets')
     user = db.relationship('User', backref='tickets')

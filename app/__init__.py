@@ -1,9 +1,11 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from app.infrastructure.database import db
 from app.config import DevelopmentConfig
 
 def create_app(config_class=DevelopmentConfig):
     app = Flask(__name__)
+    CORS(app)
     
     app.config.from_object(config_class)
     

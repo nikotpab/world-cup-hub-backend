@@ -7,7 +7,7 @@ class Bet(db.Model):
     home_goals = db.Column('home_goals', db.Integer, nullable=True)
     away_goals = db.Column('away_goals', db.Integer, nullable=False)
     match_id = db.Column('MATCH_match_id', db.Integer, db.ForeignKey('MATCH.match_id'), nullable=False)
-    user_id = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
+    user_id = db.Column('USER_user_id', db.Integer, db.ForeignKey('usuario.id_usuario'), nullable=False)
     
     # Campo para Optimistic Locking (Prevención de colisiones)
     version_id = db.Column(db.Integer, nullable=False, default=1)

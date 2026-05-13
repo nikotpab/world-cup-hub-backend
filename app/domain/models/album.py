@@ -10,7 +10,7 @@ class Album(db.Model):
     __tablename__ = "ALBUM"
     
     albumId = db.Column('album_id', db.Integer, primary_key=True, autoincrement=True)
-    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
+    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('usuario.id_usuario'), nullable=False)
     user = db.relationship('User', backref='albums')
     stickers = db.relationship('Sticker', secondary='STICKER_ALBUM', backref='albums')
 

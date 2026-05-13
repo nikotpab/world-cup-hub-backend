@@ -5,8 +5,8 @@ class TradeProposal(db.Model):
     __tablename__ = "TRADE_PROPOSAL"
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    proposer_id = db.Column(db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
-    receiver_id = db.Column(db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
+    proposer_id = db.Column(db.Integer, db.ForeignKey('usuario.id_usuario'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('usuario.id_usuario'), nullable=False)
     offered_sticker_id = db.Column(db.Integer, db.ForeignKey('STICKER.card_id'), nullable=False)
     requested_sticker_id = db.Column(db.Integer, db.ForeignKey('STICKER.card_id'), nullable=False)
     

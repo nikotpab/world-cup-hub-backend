@@ -9,12 +9,15 @@ class SqlAlchemyUserRepository(IUserRepository):
             return None
         return {
             "userId": user.userId,
-            "identification": user.identification,
             "firstName": user.firstName,
             "lastName": user.lastName,
             "email": user.email,
+            "password": user.password,
             "registeredAt": user.registeredAt,
-            "roleId": user.roleId
+            "roleId": user.roleId,
+            "verified": user.verified,
+            "verificationCode": user.verificationCode,
+            "accountStatus": user.accountStatus
         }
 
     def get_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
@@ -29,8 +32,10 @@ class SqlAlchemyUserRepository(IUserRepository):
         if "userId" in user_data and user_data["userId"]:
             user = User.query.get(user_data["userId"])
             for key, value in user_data.items():
-                setattr(user, key, value)
+                if hasattr(user, key):
+                    setattr(user, key, value)
         else:
+            user_data.pop('userId', None)
             user = User(**user_data)
             db.session.add(user)
             

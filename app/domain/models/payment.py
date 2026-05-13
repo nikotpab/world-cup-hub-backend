@@ -10,7 +10,7 @@ class Payment(db.Model):
     provider = db.Column('supplier', db.String(200), nullable=False)
     ticketId = db.Column('TICKET_ticket_id', db.Integer, db.ForeignKey('TICKET.ticket_id'), nullable=False)
     transferId = db.Column('TRANFER_transfer_id', db.Integer, db.ForeignKey('TRANFER.transfer_id'), nullable=False)
-    userId = db.Column('TICKET_USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
+    userId = db.Column('TICKET_USER_user_id', db.Integer, db.ForeignKey('usuario.id_usuario'), nullable=False)
     ticket = db.relationship('Ticket', backref='payments')
     transfer = db.relationship('Transfer', backref='payments')
     user = db.relationship('User', backref='payments')
