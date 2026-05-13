@@ -18,10 +18,15 @@ class AuthService:
         return ''.join(random.choices(string.digits, k=6))
 
     def _send_verification_email(self, email: str, code: str):
-        smtp_server = "smtp.hostinger.com"
-        smtp_port = 465
-        sender_email = "informacion@worldcuphub.online"
-        sender_password = "EqRe=1)k96]\"K?fQ7"
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.hostinger.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', 465))
+        sender_email = os.environ.get('SMTP_EMAIL', 'informacion@worldcuphub.online')
+        sender_password = os.environ.get('SMTP_PASSWORD')
+
+        if not sender_password:
+            from app.infrastructure.logger import app_logger
+            app_logger.warning({"event": "smtp_missing_password", "message": "SMTP_PASSWORD no configurado. Simulando envío."})
+            return
 
         msg = MIMEMultipart()
         msg['From'] = sender_email

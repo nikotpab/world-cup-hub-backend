@@ -19,5 +19,8 @@ class TicketResponseDTO(BaseModel):
     price: float
     matchId: int
     userId: int
+    match_details: Optional[str] = None
+    stadium: Optional[str] = None
+    date_display: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
