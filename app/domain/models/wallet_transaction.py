@@ -20,6 +20,8 @@ class WalletTransaction(db.Model):
     
     wallet = db.relationship('Wallet', backref=db.backref('transactions', overlaps="wallet_transactions,user"))
     user = db.relationship('User', backref=db.backref('wallet_transactions', overlaps="transactions,wallet"), overlaps="wallet")
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

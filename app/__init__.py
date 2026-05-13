@@ -13,14 +13,16 @@ def create_app(config_class=DevelopmentConfig):
     from app.presentation.api.match_api import match_bp
     from app.presentation.api.ticket_api import ticket_bp
     from app.presentation.api.album_api import album_bp
-    from app.presentation.api.betting_api import betting_bp
+    from app.presentation.api.community_api import community_bp
+    from app.presentation.api.bet_api import bet_bp
     from app.presentation.api.admin_api import admin_bp
     
     app.register_blueprint(user_bp, url_prefix='/api/v1')
     app.register_blueprint(match_bp, url_prefix='/api/v1')
     app.register_blueprint(ticket_bp, url_prefix='/api/v1')
     app.register_blueprint(album_bp, url_prefix='/api/v1')
-    app.register_blueprint(betting_bp, url_prefix='/api/v1')
+    app.register_blueprint(community_bp, url_prefix='/api/v1')
+    app.register_blueprint(bet_bp, url_prefix='/api/v1')
     app.register_blueprint(admin_bp, url_prefix='/api/v1')
     
     from sqlalchemy.exc import SQLAlchemyError

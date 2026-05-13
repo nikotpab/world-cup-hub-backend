@@ -18,6 +18,8 @@ class TicketHistory(db.Model):
     )
     
     ticket = db.relationship('Ticket', backref='history')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

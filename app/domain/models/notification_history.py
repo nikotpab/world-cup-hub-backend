@@ -9,6 +9,8 @@ class NotificationHistory(db.Model):
     channel = db.Column('payment_channel', db.String(50), nullable=False)
     notificationId = db.Column('NOTIFICATION_notification_id', db.Integer, db.ForeignKey('NOTIFICATION.notification_id'), nullable=False)
     notification = db.relationship('Notification', backref='history')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

@@ -14,6 +14,8 @@ class Pack(db.Model):
     userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
     user = db.relationship('User', backref='packs')
     stickers = db.relationship('Sticker', secondary='PACK_STICKER', backref='packs')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

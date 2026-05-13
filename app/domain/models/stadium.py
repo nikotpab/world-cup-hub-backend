@@ -10,6 +10,8 @@ class Stadium(db.Model):
     capacity = db.Column('capacity', db.Integer, nullable=False)
     cityId = db.Column('CITY_city_id', db.Integer, db.ForeignKey('CITY.city_id'), nullable=False)
     cityRel = db.relationship('City', backref='stadiums')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

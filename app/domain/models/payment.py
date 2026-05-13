@@ -14,6 +14,8 @@ class Payment(db.Model):
     ticket = db.relationship('Ticket', backref='payments')
     transfer = db.relationship('Transfer', backref='payments')
     user = db.relationship('User', backref='payments')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

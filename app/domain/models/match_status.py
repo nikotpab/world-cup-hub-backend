@@ -7,6 +7,8 @@ class MatchStatus(db.Model):
     nameStatus = db.Column('name_status', db.String(4000), nullable=False)
     matchId = db.Column('MATCH_match_id', db.Integer, db.ForeignKey('MATCH.match_id'), nullable=False)
     match = db.relationship('Match', backref='match_statuses')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self
