@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 from app.application.interfaces.ticket_repository import ITicketRepository
 from app.application.dtos.ticket_dto import (
@@ -8,7 +8,7 @@ from app.application.dtos.ticket_dto import (
 )
 from app.infrastructure.logger import app_logger
 
-RESERVATION_TTL_MINUTES = 30
+RESERVATION_TTL_MINUTES = 10   # 10 min → libera el cupo si no se paga
 MAX_PURCHASES_PER_DAY  = 5
 MAX_TRANSFERS_PER_DAY  = 3
 
@@ -83,7 +83,7 @@ class TicketService:
     # Ciclo de vida: Reservada → Pagada
     # ------------------------------------------------------------------
 
-    def process_payment(self, ticket_id: int, data: dict) -> TicketResponseDTO:
+    def process_payment(self, ticket_id: int, data: dict) -> dict:
         dto = TicketPayDTO(**data)
         ticket_data = self.repository.get_by_id(ticket_id)
         if not ticket_data:
@@ -92,8 +92,8 @@ class TicketService:
             raise ValueError(f"Solo se puede pagar una entrada Reservada (actual: {ticket_data['status']})")
         if ticket_data["userId"] != dto.userId:
             raise ValueError("No eres el titular de esta reserva")
-        if ticket_data["expirationDate"] and datetime.utcnow() > ticket_data["expirationDate"]:
-            raise ValueError("La reserva ha expirado")
+        if ticket_data["expirationDate"] and datetime.now(timezone.utc).replace(tzinfo=None) > ticket_data["expirationDate"]:
+            raise ValueError("La reserva ha expirado. Vuelve a intentarlo.")
 
         from app.domain.models.ticket import Ticket
         from app.infrastructure.external.payment_service import StripePaymentService
@@ -102,21 +102,29 @@ class TicketService:
         amount_cents = int(float(ticket_data["price"]) * 100)
 
         try:
-            payment_result = StripePaymentService().create_payment_intent(
-                amount=amount_cents,
+            payment_result = StripePaymentService().create_and_confirm_payment(
+                amount_cents=amount_cents,
                 metadata={"ticket_id": ticket_id, "user_id": dto.userId,
                           "correlation_id": ticket_data["correlationId"]},
             )
-            self.repository.save_payment({"status": "completado", "amount": ticket_data["price"],
-                                          "provider": "stripe", "idUser": dto.userId})
+            self.repository.save_payment({
+                "status":         "completado",
+                "amount":         ticket_data["price"],
+                "provider":       "stripe",
+                "stripeIntentId": payment_result["intent_id"],
+                "idUser":         dto.userId,
+            })
             self.repository.update_ticket(ticket_orm, status='Pagada', paidAt=datetime.utcnow())
             self.repository.save_history(ticket_id, 'Pagada',
-                                         f'Pago procesado — intent: {payment_result["id"]}')
+                                         f'Pago Stripe confirmado — intent: {payment_result["intent_id"]}')
             self.repository.commit()
 
             app_logger.info({"event": "ticket_paid", "ticket_id": ticket_id,
-                             "user_id": dto.userId, "payment_intent": payment_result["id"], "audit": True})
-            return TicketResponseDTO(**self.repository.get_by_id(ticket_id))
+                             "user_id": dto.userId, "stripe_intent": payment_result["intent_id"], "audit": True})
+
+            ticket = self.repository.get_by_id(ticket_id)
+            return {**TicketResponseDTO(**ticket).model_dump(),
+                    "stripe_intent_id": payment_result["intent_id"]}
         except Exception:
             self.repository.rollback()
             raise

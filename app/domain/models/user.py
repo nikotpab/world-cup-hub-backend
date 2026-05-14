@@ -7,7 +7,7 @@ class User(db.Model):
     idUser = db.Column('iduser', db.Integer, primary_key=True, autoincrement=True)
     firstName = db.Column('firstname', db.String(100), nullable=False)
     lastName = db.Column('lastname', db.String(100), nullable=False)
-    identification = db.Column('identification', db.Integer, nullable=False)
+    identification = db.Column('identification', db.Integer, nullable=True)
     email = db.Column('email', db.String(100), unique=True, nullable=False)
     password = db.Column('password', db.String(255), nullable=False)
     createdAt = db.Column('createdat', db.DateTime, default=db.func.current_timestamp())

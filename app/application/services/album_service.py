@@ -1,6 +1,7 @@
 from typing import Dict, Any, List
 import random
 from datetime import datetime, date
+from sqlalchemy import func
 from app.infrastructure.database import db
 from app.domain.models.album import Album, sticker_album
 from app.domain.models.pack import Pack, pack_sticker
@@ -126,58 +127,91 @@ class AlbumService:
             "coins": album.coins
         }
 
+    DAILY_PACK_LIMIT = 3
+
     def open_pack(self, user_id: int) -> Dict[str, Any]:
+        from datetime import timezone
+
         album = Album.query.filter_by(idUser=user_id).first()
         if not album:
             album = Album(idUser=user_id, packBalance=0, coins=0)
             db.session.add(album)
-            
-        if album.packBalance is None: album.packBalance = 0
-            
+
+        if album.packBalance is None:
+            album.packBalance = 0
+
         if album.packBalance <= 0:
             raise ValueError("No tienes sobres disponibles para abrir.")
-            
-        album.packBalance -= 1
-        
-        rarities = ["Common", "Rare", "Epic", "Legendary"]
-        weights = [80, 15, 4, 1]
-        
-        obtained_stickers = []
-        for _ in range(5):
-            rarity = random.choices(rarities, weights=weights, k=1)[0]
-            stickers_pool = Sticker.query.filter_by(rarity=rarity).all()
-            if not stickers_pool:
-                stickers_pool = Sticker.query.all()
-                
-            if stickers_pool:
-                obtained_stickers.append(random.choice(stickers_pool))
-        
-        if not obtained_stickers:
-            raise ValueError("No se pudieron generar láminas. Asegúrate de que la base de datos de láminas no esté vacía.")
 
-        new_pack = Pack(
-            idUser=user_id,
-            openedAt=datetime.utcnow()
+        # Límite diario: 3 sobres por día, usando hora UTC del SERVIDOR
+        today_utc_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
         )
+        packs_today = Pack.query.filter(
+            Pack.idUser == user_id,
+            Pack.openedAt >= today_utc_start
+        ).count()
+        if packs_today >= self.DAILY_PACK_LIMIT:
+            raise ValueError(
+                f"Has alcanzado el límite de {self.DAILY_PACK_LIMIT} sobres por día. "
+                "Vuelve mañana (00:00 UTC)."
+            )
+
+        album.packBalance -= 1
+
+        # Distribución de rareza por sobre: garantiza al menos 1 Rare
+        rarities = ["Common", "Rare", "Epic", "Legendary"]
+        weights  = [70, 22, 7, 1]
+
+        obtained_stickers = []
+        guaranteed_rare_added = False
+        for i in range(5):
+            if i == 4 and not guaranteed_rare_added:
+                # Última carta: fuerza Rare o mejor si el sobre no tuvo ninguna
+                rarity = random.choices(["Rare", "Epic", "Legendary"], weights=[80, 17, 3], k=1)[0]
+            else:
+                rarity = random.choices(rarities, weights=weights, k=1)[0]
+
+            pool = Sticker.query.filter_by(rarity=rarity).all()
+            if not pool:
+                pool = Sticker.query.all()
+            if pool:
+                card = random.choice(pool)
+                obtained_stickers.append(card)
+                if rarity in ("Rare", "Epic", "Legendary"):
+                    guaranteed_rare_added = True
+
+        if not obtained_stickers:
+            raise ValueError("No hay láminas en la base de datos. Ejecuta el seed primero.")
+
+        new_pack = Pack(idUser=user_id, openedAt=datetime.now(timezone.utc))
         db.session.add(new_pack)
         db.session.flush()
 
         for st in obtained_stickers:
-            # Uso de insert explícito para permitir duplicados en PostgreSQL
-            ins_pack = pack_sticker.insert().values(id_pack=new_pack.idPack, id_sticker=st.idSticker)
-            db.session.execute(ins_pack)
-            ins_album = sticker_album.insert().values(id_album=album.idAlbum, id_sticker=st.idSticker)
-            db.session.execute(ins_album)
-            
+            db.session.execute(pack_sticker.insert().values(id_pack=new_pack.idPack, id_sticker=st.idSticker))
+            db.session.execute(sticker_album.insert().values(id_album=album.idAlbum, id_sticker=st.idSticker))
+
         db.session.commit()
-        # Expulsar de la sesión para forzar recarga total de relaciones M2M
         db.session.expire(album)
-        
+
         return {
             "success": True,
-            "message": "¡Has abierto un sobre con éxito!",
-            "stickers": [{"id": s.idSticker, "name": s.name, "team": s.team, "rarity": s.rarity} for s in obtained_stickers],
-            "pack_balance": album.packBalance
+            "message": "¡Has abierto un sobre!",
+            "packs_today": packs_today + 1,
+            "packs_remaining_today": self.DAILY_PACK_LIMIT - (packs_today + 1),
+            "stickers": [
+                {
+                    "id": s.idSticker,
+                    "name": s.name,
+                    "team": s.team,
+                    "category": s.category,
+                    "rarity": s.rarity,
+                    "paniniCode": s.paniniCode,
+                }
+                for s in obtained_stickers
+            ],
+            "pack_balance": album.packBalance,
         }
 
     def convert_duplicates_to_coins(self, user_id: int) -> Dict[str, Any]:
@@ -244,4 +278,96 @@ class AlbumService:
             "message": "¡Has comprado un sobre con éxito!",
             "pack_balance": album.packBalance,
             "coins": album.coins
+        }
+
+    # ------------------------------------------------------------------
+    # Progreso del álbum
+    # ------------------------------------------------------------------
+
+    # Categorías especiales agrupadas como secciones propias
+    _SPECIAL_CATEGORIES = (
+        "Golden Baller", "Top Keeper", "Defensive Rock",
+        "Midfield Maestro", "Goal Machine", "Master Rookie",
+        "Official", "Eternal",
+    )
+    # Orden de presentación: especiales primero, luego equipos A-Z
+    _SPECIAL_ORDER = {k: i for i, k in enumerate(_SPECIAL_CATEGORIES)}
+
+    def get_album_progress(self, user_id: int) -> Dict[str, Any]:
+        from app.domain.models.sticker import Sticker
+
+        # Álbum del usuario (crear si no existe)
+        album = Album.query.filter_by(idUser=user_id).first()
+        if not album:
+            album = Album(idUser=user_id, packBalance=0, coins=0)
+            db.session.add(album)
+            db.session.commit()
+
+        # Mapa {sticker_id: copies} de láminas poseídas
+        owned_rows = (
+            db.session.query(sticker_album.c.id_sticker, func.count().label("copies"))
+            .filter(sticker_album.c.id_album == album.idAlbum)
+            .group_by(sticker_album.c.id_sticker)
+            .all()
+        )
+        owned_map = {row.id_sticker: row.copies for row in owned_rows}
+
+        # Todos los stickers ordenados
+        all_stickers = (
+            Sticker.query
+            .order_by(Sticker.team, Sticker.category, Sticker.paniniCode)
+            .all()
+        )
+
+        # Agrupar en secciones
+        sections: Dict[str, dict] = {}
+        for s in all_stickers:
+            key = s.category if s.category in self._SPECIAL_CATEGORIES else s.team
+            if key not in sections:
+                sections[key] = {
+                    "key":    key,
+                    "label":  key.title(),
+                    "type":   "special" if key in self._SPECIAL_CATEGORIES else "team",
+                    "stickers": [],
+                }
+            owned_copies = owned_map.get(s.idSticker, 0)
+            sections[key]["stickers"].append({
+                "id":          s.idSticker,
+                "panini_code": s.paniniCode,
+                "name":        s.name,
+                "category":    s.category,
+                "rarity":      s.rarity,
+                "team":        s.team,
+                "position":    s.position,
+                "nationality": s.nationality,
+                "owned":       owned_copies > 0,
+                "copies":      owned_copies,
+            })
+
+        # Calcular totales por sección y ordenar
+        sections_list = []
+        for sec in sections.values():
+            total   = len(sec["stickers"])
+            owned_n = sum(1 for st in sec["stickers"] if st["owned"])
+            sec["total"]          = total
+            sec["owned_count"]    = owned_n
+            sec["completion_pct"] = round(owned_n / total * 100, 1) if total else 0
+            sections_list.append(sec)
+
+        # Especiales primero, luego equipos A-Z
+        sections_list.sort(key=lambda s: (
+            0 if s["type"] == "special" else 1,
+            self._SPECIAL_ORDER.get(s["key"], 99) if s["type"] == "special" else s["key"],
+        ))
+
+        total_unique  = len(all_stickers)
+        total_owned   = len(owned_map)
+        completion    = round(total_owned / total_unique * 100, 2) if total_unique else 0
+
+        return {
+            "user_id":            user_id,
+            "total_owned":        total_owned,
+            "total_unique":       total_unique,
+            "completion_percentage": completion,
+            "sections":           sections_list,
         }

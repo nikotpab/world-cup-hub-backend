@@ -3,6 +3,29 @@ from flask_cors import CORS
 from app.infrastructure.database import db
 from app.config import DevelopmentConfig
 
+def _start_ttl_worker(app):
+    """Hilo daemon que libera reservas expiradas cada 60 s."""
+    import threading, time
+    from app.infrastructure.logger import app_logger
+
+    def _run():
+        time.sleep(10)  # espera inicial para que el servidor arranque
+        while True:
+            try:
+                with app.app_context():
+                    from app.application.services.ticket_service import TicketService
+                    from app.infrastructure.repositories.ticket_repository import SqlAlchemyTicketRepository
+                    result = TicketService(SqlAlchemyTicketRepository()).expire_reservations()
+                    if result.get("expired", 0) > 0:
+                        app_logger.info({"event": "ttl_worker_ran", "expired": result["expired"]})
+            except Exception as e:
+                pass  # No romper el hilo por errores transitorios de BD
+            time.sleep(60)
+
+    t = threading.Thread(target=_run, daemon=True, name="ttl-worker")
+    t.start()
+
+
 def create_app(config_class=DevelopmentConfig):
     app = Flask(__name__)
     CORS(app)
@@ -19,7 +42,8 @@ def create_app(config_class=DevelopmentConfig):
     from app.presentation.api.bet_api import bet_bp
     from app.presentation.api.admin_api import admin_bp
     from app.presentation.api.auth_api import auth_bp
-    
+    from app.presentation.api.sports_bet_api import sports_bet_bp
+
     app.register_blueprint(user_bp, url_prefix='/api/v1')
     app.register_blueprint(match_bp, url_prefix='/api/v1')
     app.register_blueprint(ticket_bp, url_prefix='/api/v1')
@@ -28,6 +52,7 @@ def create_app(config_class=DevelopmentConfig):
     app.register_blueprint(bet_bp, url_prefix='/api/v1')
     app.register_blueprint(admin_bp, url_prefix='/api/v1')
     app.register_blueprint(auth_bp, url_prefix='/api/v1')
+    app.register_blueprint(sports_bet_bp, url_prefix='/api/v1')
     
     from sqlalchemy.exc import SQLAlchemyError
     
@@ -48,4 +73,5 @@ def create_app(config_class=DevelopmentConfig):
         app_logger.error({"event":"critical_uncaught_error", "details": str(e)})
         return jsonify({"error": "ERR_INTERNAL_SERVER", "message": "Unexpected platform error"}), 500
     
+    _start_ttl_worker(app)
     return app

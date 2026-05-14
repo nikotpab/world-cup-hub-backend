@@ -13,10 +13,19 @@ class RedisCache:
             self.client = None
 
     def get(self, key):
-        return self.client.get(key) if self.client else None
+        if not self.client:
+            return None
+        try:
+            return self.client.get(key)
+        except Exception:
+            return None
 
     def set(self, key, value, ex=None):
-        if self.client:
+        if not self.client:
+            return
+        try:
             self.client.set(key, value, ex=ex)
+        except Exception:
+            pass
 
 redis_client = RedisCache()

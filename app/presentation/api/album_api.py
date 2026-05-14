@@ -100,3 +100,11 @@ def confirm_trade(trade_id):
         return jsonify(result.model_dump()), 200
     except ValueError as e:
         return jsonify({"error": "ERR_TRADE_CONFLICT", "message": str(e)}), 409
+
+@album_bp.route('/users/<int:user_id>/album/progress', methods=['GET'])
+def get_album_progress(user_id):
+    try:
+        result = album_service.get_album_progress(user_id)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": "ERR_INTERNAL", "message": str(e)}), 500
