@@ -8,6 +8,7 @@ class Payment(db.Model):
     amount = db.Column('amount', db.Numeric(10, 2))
     paymentDate = db.Column('payment_date', db.DateTime, default=db.func.current_timestamp())
     provider = db.Column('provider', db.String(100))
+    stripeIntentId = db.Column('stripe_intent_id', db.String(100), nullable=True)
     idUser = db.Column('id_user', db.Integer, db.ForeignKey('USER.iduser'))
     
     user = db.relationship('User', backref='payments')

@@ -4,6 +4,13 @@ import string
 import jwt
 import os
 from email.mime.text import MIMEText
+
+
+class _UnverifiedError(ValueError):
+    """El usuario existe y la contraseña es correcta, pero el email no fue verificado."""
+    def __init__(self, email: str):
+        super().__init__("Por favor verifica tu correo electrónico antes de iniciar sesión.")
+        self.email = email
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any
 from app.application.interfaces.user_repository import IUserRepository
@@ -116,27 +123,45 @@ class AuthService:
 
         return {"success": True, "message": "Cuenta verificada con éxito"}
 
+    def resend_verification(self, data: dict) -> Dict[str, Any]:
+        email = data.get("email")
+        if not email:
+            raise ValueError("Email requerido")
+
+        user = self.user_repository.get_by_email(email)
+        if not user:
+            raise ValueError("Usuario no encontrado")
+        if user.get("verified"):
+            raise ValueError("El usuario ya está verificado")
+
+        new_code = self._generate_verification_code()
+        user["verificationCode"] = new_code
+        self.user_repository.save(user)
+        self._send_verification_email(email, new_code)
+
+        return {"success": True, "message": "Código reenviado. Revisa tu correo."}
+
     def login(self, data: dict) -> Dict[str, Any]:
         email = data.get("email")
         password = data.get("password")
-        
+
         if not email or not password:
             raise ValueError("Email y contraseña requeridos")
-            
+
         user = self.user_repository.get_by_email(email)
-        
         if not user:
             raise ValueError("Credenciales inválidas")
-            
+
         try:
             if not argon2.verify(password, user.get("password")):
                 raise ValueError("Credenciales inválidas")
         except Exception:
             raise ValueError("Credenciales inválidas")
-            
+
         if not user.get("verified"):
-            raise ValueError("Por favor verifica tu correo electrónico antes de iniciar sesión.")
-            
+            # Usamos una excepción marcada para que el API devuelva ERR_UNVERIFIED
+            raise _UnverifiedError(email)
+
         if user.get("accountStatus") != 'activo':
             raise ValueError("Tu cuenta está suspendida.")
 
@@ -145,17 +170,17 @@ class AuthService:
             "userId": user.get("userId"),
             "email": user.get("email"),
             "roleId": user.get("roleId"),
-            "exp": datetime.utcnow() + timedelta(hours=24)
+            "exp": datetime.utcnow() + timedelta(hours=24),
         }
         token = jwt.encode(payload, secret_key, algorithm="HS256")
-            
+
         return {
             "token": token,
             "user": {
-                "userId": user.get("userId"),
-                "email": user.get("email"),
+                "userId":    user.get("userId"),
+                "email":     user.get("email"),
                 "firstName": user.get("firstName"),
-                "lastName": user.get("lastName"),
-                "roleId": user.get("roleId")
-            }
+                "lastName":  user.get("lastName"),
+                "roleId":    user.get("roleId"),
+            },
         }
