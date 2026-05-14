@@ -1,13 +1,7 @@
 from app.infrastructure.database import db
 
 class Country(db.Model):
-    __tablename__ = "COUNTRY"
+    __tablename__ = "country"
     
-    countryId = db.Column('country_id', db.Integer, primary_key=True, autoincrement=True)
-    countryName = db.Column('country_name', db.String(100), nullable=False)
-    cities = db.relationship('City', backref='country')
-
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
-        return self
+    countryId = db.Column('idcountry', db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column('countryname', db.String(100), nullable=False)

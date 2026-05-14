@@ -1,6 +1,10 @@
 from app.application.interfaces.trade_repository import ITradeRepository
 from app.application.dtos.trade_dto import TradeProposeDTO, TradeResponseDTO
 from app.domain.models.trade_proposal import TradeProposal
+from app.domain.models.pack import Pack, pack_sticker
+from app.domain.models.album import Album, sticker_album
+from app.infrastructure.database import db
+from datetime import datetime, date
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,6 +16,17 @@ class TradeService:
     def propose_trade(self, data: dict) -> TradeResponseDTO:
         dto = TradeProposeDTO(**data)
         
+        # Check daily trade limit
+        today_start = datetime.combine(date.today(), datetime.min.time())
+        daily_trades_count = TradeProposal.query.filter(
+            TradeProposal.proposer_id == dto.proposer_id,
+            TradeProposal.status == 'COMPLETED',
+            TradeProposal.updated_at >= today_start
+        ).count()
+        
+        if daily_trades_count >= 5:
+            raise ValueError("Has alcanzado el límite diario de intercambios (5).")
+
         try:
             trade = TradeProposal(
                 proposer_id=dto.proposer_id,
@@ -32,7 +47,6 @@ class TradeService:
 
     def confirm_trade(self, trade_id: int) -> TradeResponseDTO:
         try:
-            # 1. Row Lock explícito en la base de datos (con with_for_update())
             trade = self.repository.lock_trade(trade_id)
             
             if not trade:
@@ -41,14 +55,55 @@ class TradeService:
             if trade.status != 'PENDING_CONFIRMATION':
                 raise ValueError(f"Trade is already in status: {trade.status}")
                 
-            # 2. Mutar el estado a completado
+            today_start = datetime.combine(date.today(), datetime.min.time())
+            receiver_trades_count = TradeProposal.query.filter(
+                TradeProposal.receiver_id == trade.receiver_id,
+                TradeProposal.status == 'COMPLETED',
+                TradeProposal.updated_at >= today_start
+            ).count()
+            
+            if receiver_trades_count >= 5:
+                raise ValueError("El destinatario ha alcanzado su límite diario de intercambios.")
+
+            # 2. Transfer logic: Reassign stickers
+            proposer_album = Album.query.filter_by(idUser=trade.proposer_id).first()
+            receiver_album = Album.query.filter_by(idUser=trade.receiver_id).first()
+            
+            if not proposer_album or not receiver_album:
+                raise ValueError("Álbum de proponente o receptor no encontrado.")
+
+            # Find offered sticker association in proposer's album
+            offered_assoc = db.session.query(sticker_album).filter_by(
+                id_album=proposer_album.idAlbum, 
+                id_sticker=trade.offered_sticker_id
+            ).first()
+            
+            if not offered_assoc:
+                raise ValueError("El proponente ya no tiene la lámina ofrecida.")
+
+            # Find requested sticker association in receiver's album
+            requested_assoc = db.session.query(sticker_album).filter_by(
+                id_album=receiver_album.idAlbum, 
+                id_sticker=trade.requested_sticker_id
+            ).first()
+            
+            if not requested_assoc:
+                raise ValueError("El destinatario ya no tiene la lámina solicitada.")
+
+            # ATOMIC SWAP
+            # Move offered: Proposer -> Receiver
+            db.session.execute(
+                sticker_album.update().where(sticker_album.c.id == offered_assoc.id).values(id_album=receiver_album.idAlbum)
+            )
+            # Move requested: Receiver -> Proposer
+            db.session.execute(
+                sticker_album.update().where(sticker_album.c.id == requested_assoc.id).values(id_album=proposer_album.idAlbum)
+            )
+
             trade.status = 'COMPLETED'
+            trade.updated_at = datetime.utcnow()
             saved_trade = self.repository.save(trade)
             
-            # --- Aquí iría la lógica cruzada para quitar el sticker al proposer y dárselo al receiver ---
-            # ej: user_repo.transfer_sticker(trade.proposer_id, trade.receiver_id, trade.offered_sticker_id)
-            
-            # 3. Commit transaccional atómico
             self.repository.commit()
             
             logger.info({"event": "trade_confirmed", "trade_id": saved_trade.id})

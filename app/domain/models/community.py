@@ -1,21 +1,16 @@
 from app.infrastructure.database import db
 
-user_community = db.Table('USER_COMMUNITY',
-    db.Column('USER_user_id', db.Integer, db.ForeignKey('usuario.id_usuario'), primary_key=True),
-    db.Column('COMMUNITY_community_id', db.Integer, db.ForeignKey('COMMUNITY.community_id'), primary_key=True),
-    db.Column('is_admin', db.String(1), nullable=False, default='0'),
-    extend_existing=True
-)
-
 class Community(db.Model):
-    __tablename__ = "COMMUNITY"
+    __tablename__ = "pool_group"
     
-    community_id = db.Column('community_id', db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column('name', db.String(200), nullable=False)
-    invitation_code = db.Column('invitation_code', db.Integer, nullable=False, unique=True)
-    users = db.relationship('User', secondary='USER_COMMUNITY', backref='communities')
+    idCommunity = db.Column('id_group', db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column('name', db.String(100), nullable=False)
+    invitationCode = db.Column('invitation_code', db.String(50), unique=True)
+    
+    users = db.relationship('User', secondary='user_group', backref='communities')
 
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
-        return self
+user_community = db.Table('user_group',
+    db.Column('id_user', db.Integer, db.ForeignKey('USER.iduser'), primary_key=True),
+    db.Column('id_group', db.Integer, db.ForeignKey('pool_group.id_group'), primary_key=True),
+    db.Column('is_admin', db.Boolean, default=False)
+)

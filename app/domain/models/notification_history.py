@@ -1,16 +1,12 @@
 from app.infrastructure.database import db
 
 class NotificationHistory(db.Model):
-    __tablename__ = "NOTIFI_HISTORY"
+    __tablename__ = "notifi_history"
     
-    historyId = db.Column('notification_history_id', db.Integer, primary_key=True, autoincrement=True)
-    status = db.Column('status', db.String(50), nullable=False)
-    date = db.Column('date', db.DateTime, nullable=False)
-    channel = db.Column('payment_channel', db.String(50), nullable=False)
-    notificationId = db.Column('NOTIFICATION_notification_id', db.Integer, db.ForeignKey('NOTIFICATION.notification_id'), nullable=False)
+    idNotificationHistory = db.Column('notification_history_id', db.Integer, primary_key=True, autoincrement=True)
+    paymentChannel = db.Column('payment_channel', db.String(100))
+    date = db.Column('date', db.DateTime, default=db.func.current_timestamp())
+    status = db.Column('status', db.String(50))
+    notificationId = db.Column('notification_id', db.Integer, db.ForeignKey('notification.id_notification'))
+    
     notification = db.relationship('Notification', backref='history')
-
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
-        return self
