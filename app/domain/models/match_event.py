@@ -1,16 +1,12 @@
 from app.infrastructure.database import db
 
 class MatchEvent(db.Model):
-    __tablename__ = "MATCH_EVENT"
+    __tablename__ = "match_event"
     
-    eventId = db.Column('match_event_id', db.Integer, primary_key=True, autoincrement=True)
-    type = db.Column('type', db.String(50), nullable=False)
-    description = db.Column('description', db.String(200), nullable=False)
-    minute = db.Column('minute', db.DateTime, nullable=False)
-    matchId = db.Column('MATCH_match_id', db.Integer, db.ForeignKey('MATCH.match_id'), nullable=False)
+    idEvent = db.Column('id_event', db.Integer, primary_key=True, autoincrement=True)
+    eventType = db.Column('event_type', db.String(50))
+    minute = db.Column('minute', db.Integer)
+    description = db.Column('description', db.Text)
+    idMatch = db.Column('id_match', db.Integer, db.ForeignKey('match.idmatch'))
+    
     match = db.relationship('Match', backref='events')
-
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
-        return self

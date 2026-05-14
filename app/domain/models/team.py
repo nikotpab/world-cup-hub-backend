@@ -1,12 +1,8 @@
 from app.infrastructure.database import db
 
 class Team(db.Model):
-    __tablename__ = "TEAM"
+    __tablename__ = "team"
     
-    teamId = db.Column('id_team', db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column('name', db.String(4000), nullable=False)
-
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
-        return self
+    idTeam = db.Column('idteam', db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column('teamname', db.String(100), nullable=False)
+    flagUrl = db.Column('flagurl', db.Text, nullable=False)

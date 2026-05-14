@@ -2,6 +2,7 @@ import smtplib
 import random
 import string
 import jwt
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any
@@ -18,14 +19,19 @@ class AuthService:
         return ''.join(random.choices(string.digits, k=6))
 
     def _send_verification_email(self, email: str, code: str):
-        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.hostinger.com')
-        smtp_port = int(os.environ.get('SMTP_PORT', 465))
-        sender_email = os.environ.get('SMTP_EMAIL', 'informacion@worldcuphub.online')
+        smtp_server = os.environ.get('SMTP_SERVER')
+        smtp_port = os.environ.get('SMTP_PORT')
+        sender_email = os.environ.get('SMTP_EMAIL')
         sender_password = os.environ.get('SMTP_PASSWORD')
 
-        if not sender_password:
+        if not all([smtp_server, smtp_port, sender_email, sender_password]):
             from app.infrastructure.logger import app_logger
-            app_logger.warning({"event": "smtp_missing_password", "message": "SMTP_PASSWORD no configurado. Simulando envío."})
+            app_logger.warning({"event": "smtp_missing_config", "message": "Configuración SMTP incompleta en variables de entorno. Simulando envío."})
+            return
+
+        try:
+            smtp_port = int(smtp_port)
+        except ValueError:
             return
 
         msg = MIMEMultipart()

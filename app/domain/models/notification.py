@@ -1,15 +1,9 @@
 from app.infrastructure.database import db
 
 class Notification(db.Model):
-    __tablename__ = "NOTIFICATION"
+    __tablename__ = "notification"
     
-    notificationId = db.Column('notification_id', db.Integer, primary_key=True, autoincrement=True)
-    messageType = db.Column('message_type', db.String(50), nullable=False)
-    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('usuario.id_usuario'), nullable=False)
-    message = db.Column('message', db.String(500), nullable=False)
-    user = db.relationship('User', backref='notifications')
-
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
-        return self
+    idNotification = db.Column('id_notification', db.Integer, primary_key=True, autoincrement=True)
+    message = db.Column('message', db.Text)
+    createdAt = db.Column('created_at', db.DateTime, default=db.func.current_timestamp())
+    channel = db.Column('channel', db.String(50))

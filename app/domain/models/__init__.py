@@ -1,4 +1,5 @@
 from .album import Album
+from .promo_code import PromoCode, PromoCodeUsage
 from .audit import Audit
 from .bet import Bet
 from .city import City

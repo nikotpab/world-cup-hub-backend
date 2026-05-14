@@ -1,22 +1,17 @@
 from app.infrastructure.database import db
-from app.domain.models.stadium import Stadium
-from app.domain.models.national_team import NationalTeam
 
 class Match(db.Model):
-    __tablename__ = "MATCH"
+    __tablename__ = "match"
     
-    matchId = db.Column('match_id', db.Integer, primary_key=True, autoincrement=True)
-    status = db.Column('status', db.String(50), nullable=False)
-    phase = db.Column('phase', db.String(50), nullable=False)
-    scheduledAt = db.Column('date_hour', db.DateTime, nullable=False)
-    stadiumId = db.Column('STADIUM_stadium_id', db.Integer, db.ForeignKey('STADIUM.stadium_id'), nullable=False)
+    matchId = db.Column('idmatch', db.Integer, primary_key=True, autoincrement=True)
+    scheduledAt = db.Column('matchdate', db.DateTime, nullable=False)
+    stadiumId = db.Column('idstadium', db.Integer, db.ForeignKey('stadium.idstadium'), nullable=True)
+    home_team_id = db.Column('home_team_id', db.Integer, db.ForeignKey('team.idteam'), nullable=True)
+    away_team_id = db.Column('away_team_id', db.Integer, db.ForeignKey('team.idteam'), nullable=True)
+    home_goals = db.Column('home_goals', db.Integer, default=0)
+    away_goals = db.Column('away_goals', db.Integer, default=0)
+    status = db.Column('status', db.String(50), default='SCHEDULED')
     
-    homeTeamId = db.Column('home_team_id', db.Integer, db.ForeignKey('NATIONAL_TEAM.national_team_id'), nullable=True)
-    awayTeamId = db.Column('away_team_id', db.Integer, db.ForeignKey('NATIONAL_TEAM.national_team_id'), nullable=True)
-    
-    homeGoals = db.Column('home_goals', db.Integer, nullable=True)
-    awayGoals = db.Column('away_goals', db.Integer, nullable=True)
-
     stadium = db.relationship('Stadium', backref='matches')
-    homeTeam = db.relationship('NationalTeam', foreign_keys=[homeTeamId], backref='home_matches')
-    awayTeam = db.relationship('NationalTeam', foreign_keys=[awayTeamId], backref='away_matches')
+    home_team = db.relationship('Team', foreign_keys=[home_team_id], backref='home_matches')
+    away_team = db.relationship('Team', foreign_keys=[away_team_id], backref='away_matches')
