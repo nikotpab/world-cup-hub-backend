@@ -12,11 +12,24 @@ class AlbumService:
     def __init__(self):
         pass
 
+    DAILY_FREE_PACKS = 3  # packs regalados cada día automáticamente
+
+    def _auto_claim_daily(self, album: "Album") -> None:
+        """Reclama los sobres diarios automáticamente si no se han reclamado hoy."""
+        today = date.today()
+        if album.lastRewardDate != today:
+            album.lastRewardDate = today
+            album.packBalance = (album.packBalance or 0) + self.DAILY_FREE_PACKS
+
     def get_user_album(self, user_id: int) -> Dict[str, Any]:
         album = Album.query.filter_by(idUser=user_id).first()
         if not album:
-            album = Album(idUser=user_id)
+            album = Album(idUser=user_id, packBalance=self.DAILY_FREE_PACKS)
             db.session.add(album)
+            album.lastRewardDate = date.today()
+            db.session.commit()
+        else:
+            self._auto_claim_daily(album)
             db.session.commit()
             
         all_stickers = album.stickers
@@ -139,6 +152,9 @@ class AlbumService:
 
         if album.packBalance is None:
             album.packBalance = 0
+
+        # Auto-claim daily packs before checking balance
+        self._auto_claim_daily(album)
 
         if album.packBalance <= 0:
             raise ValueError("No tienes sobres disponibles para abrir.")
@@ -293,6 +309,78 @@ class AlbumService:
     # Orden de presentación: especiales primero, luego equipos A-Z
     _SPECIAL_ORDER = {k: i for i, k in enumerate(_SPECIAL_CATEGORIES)}
 
+    def _get_flags_mapping(self):
+        try:
+            from app.infrastructure.external.football_data_service import FootballDataService
+            teams_data = FootballDataService().get_teams()
+            
+            es_to_en = {
+                "Brasil": "Brazil",
+                "Inglaterra": "England",
+                "España": "Spain",
+                "Francia": "France",
+                "Alemania": "Germany",
+                "Estados Unidos": "United States",
+                "Corea del Sur": "South Korea",
+                "Japón": "Japan",
+                "Países Bajos": "Netherlands",
+                "Marruecos": "Morocco",
+                "Arabia Saudita": "Saudi Arabia",
+                "México": "Mexico",
+                "Bélgica": "Belgium",
+                "Catar": "Qatar",
+                "Croacia": "Croatia",
+                "Suiza": "Switzerland",
+                "Camerún": "Cameroon",
+                "Gales": "Wales",
+                "Polonia": "Poland",
+                "Australia": "Australia",
+                "Dinamarca": "Denmark",
+                "Túnez": "Tunisia",
+                "Canadá": "Canada",
+                "Ecuador": "Ecuador",
+                "Ghana": "Ghana",
+                "Portugal": "Portugal",
+                "Uruguay": "Uruguay",
+                "Argentina": "Argentina",
+                "Colombia": "Colombia",
+                "Congo RD": "Congo DR",
+                "Cabo Verde": "Cape Verde Islands",
+                "Bosnia y Herzegovina": "Bosnia-Herzegovina",
+                "República Checa": "Czechia",
+                "Suecia": "Sweden",
+                "Haití": "Haiti",
+                "Egipto": "Egypt",
+                "Irán": "Iran",
+                "Curazao": "Curaçao",
+                "Sudáfrica": "South Africa",
+                "Paraguay": "Paraguay",
+                "Austria": "Austria",
+                "Irak": "Iraq",
+                "Jordania": "Jordan",
+                "Uzbekistán": "Uzbekistan",
+                "Nueva Zelanda": "New Zealand",
+                "Noruega": "Norway",
+                "Panamá": "Panama",
+                "Senegal": "Senegal",
+                "Argelia": "Algeria",
+                "Turquía": "Turkey",
+                "Costa de Marfil": "Ivory Coast",
+                "Escocia": "Scotland"
+            }
+            
+            en_to_crest = {t.get("name"): t.get("crest") for t in teams_data.get("teams", [])}
+            
+            mapping = {}
+            for es, en in es_to_en.items():
+                if en in en_to_crest:
+                    mapping[es] = en_to_crest[en]
+            return mapping
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error fetching flags: {e}")
+            return {}
+
     def get_album_progress(self, user_id: int) -> Dict[str, Any]:
         from app.domain.models.sticker import Sticker
 
@@ -319,15 +407,19 @@ class AlbumService:
             .all()
         )
 
+        flags_map = self._get_flags_mapping()
+
         # Agrupar en secciones
         sections: Dict[str, dict] = {}
         for s in all_stickers:
             key = s.category if s.category in self._SPECIAL_CATEGORIES else s.team
             if key not in sections:
+                is_special = key in self._SPECIAL_CATEGORIES
                 sections[key] = {
                     "key":    key,
                     "label":  key.title(),
-                    "type":   "special" if key in self._SPECIAL_CATEGORIES else "team",
+                    "type":   "special" if is_special else "team",
+                    "flagUrl": None if is_special else flags_map.get(key),
                     "stickers": [],
                 }
             owned_copies = owned_map.get(s.idSticker, 0)

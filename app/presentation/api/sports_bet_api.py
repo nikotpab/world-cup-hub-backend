@@ -85,17 +85,19 @@ def place_bet():
     if odds_val < 1.01:
         return jsonify({"error": "ERR_BAD_REQUEST", "message": "Cuota inválida"}), 400
 
-    # Verificar y descontar coins del álbum
-    album = Album.query.filter_by(idUser=user_id).first()
-    if not album:
-        album = Album(idUser=user_id, packBalance=0, coins=0)
-        db.session.add(album)
-    if (album.coins or 0) < stake:
-        return jsonify({"error": "ERR_INSUFFICIENT_FUNDS",
-                        "message": f"Saldo insuficiente. Tienes {album.coins} monedas."}), 400
+    # Pago con Stripe test mode
+    from app.infrastructure.external.payment_service import StripePaymentService
+    amount_cents = stake * 100  # stake en USD
+    try:
+        payment = StripePaymentService().create_and_confirm_payment(
+            amount_cents=amount_cents,
+            metadata={"user_id": user_id, "bet_type": data["betType"],
+                      "match_id": data["matchId"]},
+        )
+    except ValueError as e:
+        return jsonify({"error": "ERR_PAYMENT_FAILED", "message": str(e)}), 402
 
     potential = int(stake * odds_val)
-    album.coins -= stake
 
     bet = SportsBet(
         userId=user_id,
@@ -110,6 +112,7 @@ def place_bet():
         status="pending",
         createdAt=datetime.now(timezone.utc),
     )
+    setattr(bet, 'stripe_intent_id', payment["intent_id"])
     db.session.add(bet)
     db.session.commit()
 
@@ -117,13 +120,13 @@ def place_bet():
                      "user_id": user_id, "stake": stake, "odds": odds_val, "audit": True})
 
     return jsonify({
-        "success":       True,
-        "bet_id":        bet.id,
-        "bet_label":     bet.betLabel,
-        "odds":          bet.odds,
-        "stake":         bet.stake,
-        "potential_win": bet.potentialWin,
-        "coins_balance": album.coins,
+        "success":         True,
+        "bet_id":          bet.id,
+        "bet_label":       bet.betLabel,
+        "odds":            bet.odds,
+        "stake":           bet.stake,
+        "potential_win":   bet.potentialWin,
+        "stripe_intent_id": payment["intent_id"],
     }), 201
 
 

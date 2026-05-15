@@ -22,6 +22,11 @@ class TicketTransferDTO(BaseModel):
     toUserId: int
     model_config = ConfigDict(extra='forbid')
 
+class TicketTransferByEmailDTO(BaseModel):
+    fromUserId: int
+    toEmail: str
+    model_config = ConfigDict(extra='forbid')
+
 class TicketRefundDTO(BaseModel):
     userId: int
     reason: Optional[str] = "Solicitud de reembolso"

@@ -1,11 +1,12 @@
 from flask import Blueprint, request, jsonify
 from app.application.services.user_service import UserService
 from app.infrastructure.repositories.user_repository import SqlAlchemyUserRepository
+from app.infrastructure.database import db
+from app.domain.models.user import User
 from pydantic import ValidationError
 
 user_bp = Blueprint('user_bp', __name__)
 
-# Dependencias (Idealmente configuradas a nivel contenedor DI)
 user_repo = SqlAlchemyUserRepository()
 user_service = UserService(user_repo)
 
@@ -32,3 +33,43 @@ def get_user(user_id):
 def get_users():
     results = user_service.get_all_users()
     return jsonify([r.model_dump() for r in results]), 200
+
+
+@user_bp.route('/users/<int:user_id>/profile-picture', methods=['PUT'])
+def update_profile_picture(user_id):
+    """Updates the profile picture for a user."""
+    data = request.get_json() or {}
+    picture = data.get('profilePicture', '')
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    user.profilePicture = picture
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"error": "DB error", "details": str(exc)}), 500
+
+    return jsonify({"ok": True, "user_id": user_id, "profilePicture": user.profilePicture}), 200
+
+@user_bp.route('/users/<int:user_id>/fcm-token', methods=['POST'])
+def update_fcm_token(user_id):
+    data = request.get_json() or {}
+    token = data.get('token', '').strip()
+    if not token:
+        return jsonify({"error": "token is required"}), 400
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    user.fcmToken = token
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"error": "DB error", "details": str(exc)}), 500
+
+    return jsonify({"ok": True, "user_id": user_id}), 200

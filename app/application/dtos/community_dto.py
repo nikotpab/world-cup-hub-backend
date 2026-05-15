@@ -1,17 +1,24 @@
 from pydantic import BaseModel, ConfigDict
+from typing import Optional
 
 class CommunityCreateDTO(BaseModel):
     name: str
     userId: int # Admin creator
+    maxMembers: Optional[int] = None
+    favoriteTeam: Optional[str] = None
+    favoritePlayers: Optional[str] = None
 
 class CommunityJoinDTO(BaseModel):
     invitationCode: int
     userId: int
 
 class CommunityResponseDTO(BaseModel):
-    community_id: int
+    idCommunity: int
     name: str
-    invitation_code: int
+    invitationCode: str
+    maxMembers: Optional[int] = None
+    favoriteTeam: Optional[str] = None
+    favoritePlayers: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

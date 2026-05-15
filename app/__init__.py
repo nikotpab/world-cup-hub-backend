@@ -43,6 +43,8 @@ def create_app(config_class=DevelopmentConfig):
     from app.presentation.api.admin_api import admin_bp
     from app.presentation.api.auth_api import auth_bp
     from app.presentation.api.sports_bet_api import sports_bet_bp
+    from app.presentation.api.proxy_api import proxy_bp
+    from app.presentation.api.news_api import news_bp
 
     app.register_blueprint(user_bp, url_prefix='/api/v1')
     app.register_blueprint(match_bp, url_prefix='/api/v1')
@@ -53,6 +55,8 @@ def create_app(config_class=DevelopmentConfig):
     app.register_blueprint(admin_bp, url_prefix='/api/v1')
     app.register_blueprint(auth_bp, url_prefix='/api/v1')
     app.register_blueprint(sports_bet_bp, url_prefix='/api/v1')
+    app.register_blueprint(proxy_bp, url_prefix='/api/v1')
+    app.register_blueprint(news_bp, url_prefix='/api/v1')
     
     from sqlalchemy.exc import SQLAlchemyError
     
