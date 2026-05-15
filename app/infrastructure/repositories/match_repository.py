@@ -10,9 +10,13 @@ class SqlAlchemyMatchRepository(IMatchRepository):
         return {
             "matchId": match.matchId,
             "status": match.status,
-            "phase": match.phase,
-            "scheduledAt": match.scheduledAt,
-            "stadiumId": match.stadiumId
+            "scheduledAt": match.scheduledAt.isoformat() if match.scheduledAt else None,
+            "stadiumId": match.stadiumId,
+            "homeTeamName": match.home_team_name,
+            "awayTeamName": match.away_team_name,
+            "homeGoals": match.home_goals,
+            "awayGoals": match.away_goals,
+            "ticketPrice": match.ticket_price,
         }
 
     def get_by_id(self, match_id: int) -> Optional[Dict[str, Any]]:

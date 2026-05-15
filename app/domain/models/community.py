@@ -7,6 +7,10 @@ class Community(db.Model):
     name = db.Column('name', db.String(100), nullable=False)
     invitationCode = db.Column('invitation_code', db.String(50), unique=True)
     
+    maxMembers = db.Column('max_members', db.Integer, nullable=True)
+    favoriteTeam = db.Column('favorite_team', db.String(100), nullable=True)
+    favoritePlayers = db.Column('favorite_players', db.String(300), nullable=True)
+
     users = db.relationship('User', secondary='user_group', backref='communities')
 
 user_community = db.Table('user_group',

@@ -15,11 +15,14 @@ class CommunityService:
         dto = CommunityCreateDTO(**data)
         
         # Generar código de invitación aleatorio (5 dígitos)
-        inv_code = random.randint(10000, 99999)
+        inv_code = str(random.randint(10000, 99999))
         
         community = Community(
             name=dto.name,
-            invitation_code=inv_code
+            invitationCode=inv_code,
+            maxMembers=dto.maxMembers,
+            favoriteTeam=dto.favoriteTeam,
+            favoritePlayers=dto.favoritePlayers
         )
         
         try:
@@ -31,7 +34,7 @@ class CommunityService:
             saved_community = self.repository.save_community(community)
             self.repository.commit()
             
-            logger.info({"event": "community_created", "community_id": saved_community.community_id, "creator": dto.userId})
+            logger.info({"event": "community_created", "community_id": saved_community.idCommunity, "creator": dto.userId})
             return CommunityResponseDTO.model_validate(saved_community)
         except Exception as e:
             self.repository.rollback()
@@ -40,7 +43,7 @@ class CommunityService:
     def join_community(self, data: dict) -> CommunityResponseDTO:
         dto = CommunityJoinDTO(**data)
         
-        community = self.repository.get_community_by_code(dto.invitationCode)
+        community = self.repository.get_community_by_code(str(dto.invitationCode))
         if not community:
             raise ValueError("Código de invitación inválido")
             
@@ -54,7 +57,7 @@ class CommunityService:
         try:
             community.users.append(user)
             self.repository.commit()
-            logger.info({"event": "user_joined_community", "community_id": community.community_id, "user_id": dto.userId})
+            logger.info({"event": "user_joined_community", "community_id": community.idCommunity, "user_id": dto.userId})
             return CommunityResponseDTO.model_validate(community)
         except Exception as e:
             self.repository.rollback()

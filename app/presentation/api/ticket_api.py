@@ -87,6 +87,33 @@ def transfer_ticket(ticket_id):
     except ValueError as e:
         return jsonify({"error": "ERR_BAD_REQUEST", "message": str(e)}), 400
 
+@ticket_bp.route('/tickets/<int:ticket_id>/transfer-by-email', methods=['POST'])
+def transfer_ticket_by_email(ticket_id):
+    """Pagada → Transferida. Body: {fromUserId, toEmail}. Verifica que el destinatario exista."""
+    from app.application.dtos.ticket_dto import TicketTransferByEmailDTO
+    from app.domain.models.user import User
+    try:
+        data = request.get_json()
+        dto = TicketTransferByEmailDTO(**data)
+        recipient = User.query.filter_by(email=dto.toEmail).first()
+        if not recipient:
+            return jsonify({"error": "ERR_USER_NOT_FOUND",
+                            "message": f"No existe ningún usuario con el correo '{dto.toEmail}'."}), 404
+        if recipient.idUser == dto.fromUserId:
+            return jsonify({"error": "ERR_BAD_REQUEST",
+                            "message": "No puedes transferirte una entrada a ti mismo."}), 400
+        result = ticket_service.transfer_ticket(ticket_id, {
+            "fromUserId": dto.fromUserId,
+            "toUserId": recipient.idUser,
+        })
+        result["toEmail"] = dto.toEmail
+        result["toName"] = f"{recipient.firstName} {recipient.lastName}".strip()
+        return jsonify(result), 200
+    except ValidationError as e:
+        return jsonify({"error": "ERR_VALIDATION", "details": e.errors()}), 400
+    except ValueError as e:
+        return jsonify({"error": "ERR_BAD_REQUEST", "message": str(e)}), 400
+
 @ticket_bp.route('/tickets/<int:ticket_id>/refund', methods=['POST'])
 def refund_ticket(ticket_id):
     """Pagada → Reembolsada. Body: {userId, reason?}"""

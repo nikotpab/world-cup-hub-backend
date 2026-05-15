@@ -42,7 +42,23 @@ def login():
         result = auth_service.login(data)
         return jsonify(result), 200
     except _UnverifiedError as e:
-        # El frontend usa este código para mostrar el flujo de verificación
         return jsonify({"error": "ERR_UNVERIFIED", "message": str(e), "email": e.email}), 401
     except ValueError as e:
         return jsonify({"error": "ERR_UNAUTHORIZED", "message": str(e)}), 401
+
+
+@auth_bp.route('/auth/logout', methods=['POST'])
+def logout():
+    """
+    Blacklists the JWT in Redis so it can't be reused.
+    Body is optional; the token is read from the Authorization header.
+    """
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header.removeprefix('Bearer ').strip()
+    if token:
+        try:
+            from app.infrastructure.cache.redis_client import redis_client
+            redis_client.set(f"blacklist:{token}", "1", ex=86400)  # 24 h TTL
+        except Exception:
+            pass
+    return jsonify({"ok": True}), 200

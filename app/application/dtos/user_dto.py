@@ -19,5 +19,6 @@ class UserResponseDTO(BaseModel):
     registeredAt: Optional[datetime] = None
     roleId: Optional[int] = None
     verified: bool
+    profilePicture: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

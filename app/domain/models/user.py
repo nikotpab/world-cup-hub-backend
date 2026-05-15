@@ -15,5 +15,7 @@ class User(db.Model):
     verified = db.Column('verified', db.Boolean, default=False)
     verificationCode = db.Column('verificationcode', db.String(6), nullable=True)
     accountStatus = db.Column('accountstatus', db.String(20), default='activo')
+    fcmToken = db.Column('fcm_token', db.String(300), nullable=True)
+    profilePicture = db.Column('profilepicture', db.Text, nullable=True)
     
     role = db.relationship('Role', backref='users')
