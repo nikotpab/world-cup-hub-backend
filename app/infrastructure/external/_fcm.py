@@ -35,15 +35,17 @@ def _get_app():
     return _app
 
 
-def send_push(token: str, title: str, body: str) -> None:
+def send_push(token: str, title: str, body: str, data: dict = None) -> None:
     """Send a push notification via FCM. Raises on failure."""
     app = _get_app()
     if app is None:
         raise RuntimeError("FCM not configured (no FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS)")
 
     from firebase_admin import messaging
+    str_data = {k: str(v) for k, v in (data or {}).items()}
     message = messaging.Message(
         notification=messaging.Notification(title=title, body=body),
+        data=str_data,
         token=token,
     )
     messaging.send(message, app=app)

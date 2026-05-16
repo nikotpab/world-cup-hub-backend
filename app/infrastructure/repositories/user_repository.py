@@ -18,6 +18,7 @@ class SqlAlchemyUserRepository(IUserRepository):
             "verified":         user.verified,
             "verificationCode": user.verificationCode,
             "accountStatus":    user.accountStatus,
+            "profilePicture":   user.profilePicture,
         }
 
     def get_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
@@ -38,6 +39,7 @@ class SqlAlchemyUserRepository(IUserRepository):
         "verificationCode": "verificationCode",
         "accountStatus":    "accountStatus",
         "roleId":           "idRole",
+        "profilePicture":   "profilePicture",
     }
 
     def save(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
