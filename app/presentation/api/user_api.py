@@ -35,6 +35,25 @@ def get_users():
     return jsonify([r.model_dump() for r in results]), 200
 
 
+@user_bp.route('/users/<int:user_id>/notifications', methods=['GET'])
+def get_user_notifications(user_id):
+    """Returns the latest notifications for the user."""
+    from app.domain.models.notification import Notification
+    try:
+        notifications = Notification.query.filter_by(userId=user_id).order_by(Notification.createdAt.desc()).limit(20).all()
+        results = []
+        for n in notifications:
+            results.append({
+                "id": n.idNotification,
+                "title": n.title,
+                "message": n.message,
+                "notifType": n.notifType,
+                "createdAt": n.createdAt.isoformat() if n.createdAt else None
+            })
+        return jsonify(results), 200
+    except Exception as exc:
+        return jsonify({"error": "DB error", "details": str(exc)}), 500
+
 @user_bp.route('/users/<int:user_id>/profile-picture', methods=['PUT'])
 def update_profile_picture(user_id):
     """Updates the profile picture for a user."""

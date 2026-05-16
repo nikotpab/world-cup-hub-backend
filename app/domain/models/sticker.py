@@ -11,6 +11,7 @@ class Sticker(db.Model):
     paniniCode  = db.Column('panini_code',   db.String(50),  nullable=True)
     position    = db.Column('position',      db.String(50),  nullable=True)
     nationality = db.Column('nationality',   db.String(100), nullable=True)
+    photoUrl    = db.Column('photo_url',      db.Text,        nullable=True)
     raretyCatId = db.Column('rarety_cat_id', db.Integer, db.ForeignKey('raryty_cat.rarety_cat_id'), nullable=False)
 
     rarityCat = db.relationship('RarityCat', backref='stickers')

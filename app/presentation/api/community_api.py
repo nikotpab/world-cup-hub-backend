@@ -32,6 +32,24 @@ def join_community():
     except ValueError as e:
         return jsonify({"error": "ERR_BAD_REQUEST", "message": str(e)}), 400
 
+@community_bp.route('/communities/mine', methods=['GET'])
+def get_my_communities():
+    user_id = request.args.get('userId', type=int)
+    if not user_id:
+        return jsonify({"error": "userId requerido"}), 400
+    result = community_service.get_user_communities(user_id)
+    return jsonify([r.model_dump() for r in result]), 200
+
+
+@community_bp.route('/communities/suggested', methods=['GET'])
+def get_suggested_communities():
+    user_id = request.args.get('userId', type=int)
+    if not user_id:
+        return jsonify({"error": "userId requerido"}), 400
+    result = community_service.get_suggested_communities(user_id)
+    return jsonify([r.model_dump() for r in result]), 200
+
+
 @community_bp.route('/communities/<int:community_id>/ranking', methods=['GET'])
 def get_ranking(community_id):
     try:

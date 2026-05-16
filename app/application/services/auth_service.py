@@ -177,10 +177,11 @@ class AuthService:
         return {
             "token": token,
             "user": {
-                "userId":    user.get("userId"),
-                "email":     user.get("email"),
-                "firstName": user.get("firstName"),
-                "lastName":  user.get("lastName"),
-                "roleId":    user.get("roleId"),
+                "userId":         user.get("userId"),
+                "email":          user.get("email"),
+                "firstName":      user.get("firstName"),
+                "lastName":       user.get("lastName"),
+                "roleId":         user.get("roleId"),
+                "profilePicture": user.get("profilePicture"),
             },
         }

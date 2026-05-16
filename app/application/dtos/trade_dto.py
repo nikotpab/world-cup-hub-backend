@@ -4,7 +4,7 @@ from typing import Optional
 
 class TradeProposeDTO(BaseModel):
     proposer_id: int
-    receiver_id: int
+    receiver_email: str
     offered_sticker_id: int
     requested_sticker_id: int
     

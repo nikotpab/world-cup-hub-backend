@@ -117,13 +117,11 @@ def _decimal_odds(p: float) -> float:
     return round(raw * (1.0 - MARGIN), 2)
 
 
-def calculate_odds(home_team: str, away_team: str) -> Dict[str, Any]:
+def calculate_odds(home_team: str, away_team: str, market_volumes: Dict[str, float] = None) -> Dict[str, Any]:
     h_str = _resolve(home_team)
     a_str = _resolve(away_team)
 
     # Dixon-Coles: λ = μ × ataque × resistencia_defensa_rival × ventaja_local
-    # def < 1.0 → defensa fuerte (concede menos goles)
-    # def > 1.0 → defensa débil (concede más goles)
     lam_home = MU * h_str["atk"] * a_str["def"] * HOME_ADVANTAGE
     lam_away = MU * a_str["atk"] * h_str["def"]
 
@@ -143,11 +141,32 @@ def calculate_odds(home_team: str, away_team: str) -> Dict[str, Any]:
             else:
                 p_away += p
 
-    # Normalizar para que sumen exactamente 1
-    total = p_home + p_draw + p_away
-    p_home /= total
-    p_draw /= total
-    p_away /= total
+    # Normalizar estadísticas
+    total_stat = p_home + p_draw + p_away
+    p_home /= total_stat
+    p_draw /= total_stat
+    p_away /= total_stat
+
+    # ── Ajuste Dinámico (Market Sentiment) ───────────────────────────────────
+    # Si hay apuestas reales, mezclamos la probabilidad estadística con la del mercado
+    if market_volumes:
+        total_staked = sum(market_volumes.values())
+        if total_staked > 0:
+            # Probabilidades del mercado (qué porcentaje del dinero está en cada lado)
+            m_home = market_volumes.get("home_win", 0) / total_staked
+            m_draw = market_volumes.get("draw", 0) / total_staked
+            m_away = market_volumes.get("away_win", 0) / total_staked
+            
+            # Peso de la estadística vs mercado (0.6 stat / 0.4 mercado)
+            # Esto evita que una sola apuesta grande mueva la cuota a extremos absurdos
+            W = 0.6 
+            p_home = (p_home * W) + (m_home * (1 - W))
+            p_draw = (p_draw * W) + (m_draw * (1 - W))
+            p_away = (p_away * W) + (m_away * (1 - W))
+            
+            # Re-normalizar
+            t = p_home + p_draw + p_away
+            p_home /= t; p_draw /= t; p_away /= t
 
     # Top 8 marcadores por probabilidad (con cuota)
     top_scores = sorted(score_probs.items(), key=lambda x: -x[1])[:8]
@@ -164,7 +183,7 @@ def calculate_odds(home_team: str, away_team: str) -> Dict[str, Any]:
             "away": round(lam_away, 2),
         },
         "top_scores": [
-            {"score": s, "odds": _decimal_odds(p / total), "prob": round(p / total * 100, 1)}
+            {"score": s, "odds": _decimal_odds(p / total_stat), "prob": round(p / total_stat * 100, 1)}
             for s, p in top_scores
         ],
     }

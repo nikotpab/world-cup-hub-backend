@@ -101,6 +101,50 @@ def confirm_trade(trade_id):
     except ValueError as e:
         return jsonify({"error": "ERR_TRADE_CONFLICT", "message": str(e)}), 409
 
+@album_bp.route('/album/exchange/<int:trade_id>/reject', methods=['PUT'])
+def reject_trade(trade_id):
+    from app.domain.models.trade_proposal import TradeProposal
+    from app.infrastructure.database import db
+    trade = TradeProposal.query.get(trade_id)
+    if not trade:
+        return jsonify({"error": "Trade not found"}), 404
+    if trade.status != 'PENDING_CONFIRMATION':
+        return jsonify({"error": "ERR_TRADE_CONFLICT", "message": f"Trade is in status: {trade.status}"}), 409
+    trade.status = 'REJECTED'
+    db.session.commit()
+    return jsonify({"id": trade.id, "status": trade.status}), 200
+
+@album_bp.route('/users/<int:user_id>/trades/pending', methods=['GET'])
+def get_pending_trades(user_id):
+    from app.domain.models.trade_proposal import TradeProposal
+    from app.domain.models.sticker import Sticker
+    from app.domain.models.user import User
+    trades = TradeProposal.query.filter_by(
+        receiver_id=user_id, status='PENDING_CONFIRMATION'
+    ).order_by(TradeProposal.created_at.desc()).all()
+    result = []
+    for t in trades:
+        offered = Sticker.query.get(t.offered_sticker_id)
+        requested = Sticker.query.get(t.requested_sticker_id)
+        proposer = User.query.get(t.proposer_id)
+        result.append({
+            "id": t.id,
+            "proposer_email": proposer.email if proposer else None,
+            "proposer_name": f"{proposer.firstName} {proposer.lastName}" if proposer else None,
+            "offered_sticker": {
+                "id": offered.idSticker, "name": offered.name,
+                "team": offered.team, "rarity": offered.rarity,
+                "photo_url": offered.photoUrl,
+            } if offered else None,
+            "requested_sticker": {
+                "id": requested.idSticker, "name": requested.name,
+                "team": requested.team, "rarity": requested.rarity,
+                "photo_url": requested.photoUrl,
+            } if requested else None,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        })
+    return jsonify(result), 200
+
 @album_bp.route('/users/<int:user_id>/album/progress', methods=['GET'])
 def get_album_progress(user_id):
     try:

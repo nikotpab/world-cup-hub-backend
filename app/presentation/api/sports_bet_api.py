@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
+from sqlalchemy import func
 from app.infrastructure.database import db
 from app.domain.models.sports_bet import SportsBet
 from app.domain.models.album import Album
@@ -11,19 +12,36 @@ sports_bet_bp = Blueprint("sports_bet_bp", __name__)
 _football_svc = FootballDataService()
 
 
+def _get_market_volumes(match_id: int) -> dict:
+    """Obtiene el volumen total de apuestas por cada resultado para un partido."""
+    try:
+        results = db.session.query(
+            SportsBet.betType, 
+            func.sum(SportsBet.stake)
+        ).filter(SportsBet.matchId == match_id).group_by(SportsBet.betType).all()
+        return {bet_type: float(total) for bet_type, total in results}
+    except Exception:
+        return {}
+
+
 def _enrich_match(m: dict) -> dict:
-    """Agrega cuotas Poisson a un partido de la API."""
+    """Agrega cuotas Poisson dinámicas a un partido de la API."""
+    match_id = m.get("id")
     home = m.get("homeTeam", {}).get("shortName") or m.get("homeTeam", {}).get("name", "Local")
     away = m.get("awayTeam", {}).get("shortName") or m.get("awayTeam", {}).get("name", "Visitante")
+    
+    # Obtener volúmenes del mercado (apuestas de usuarios reales)
+    market = _get_market_volumes(match_id) if match_id else {}
+    
     try:
-        odds = calculate_odds(home, away)
+        odds = calculate_odds(home, away, market_volumes=market)
     except Exception:
         odds = {"home_win": 2.0, "draw": 3.2, "away_win": 3.5,
                 "prob_home": 45.0, "prob_draw": 28.0, "prob_away": 27.0,
                 "expected_goals": {"home": 1.35, "away": 1.10},
                 "top_scores": []}
     return {
-        "match_id":  m.get("id"),
+        "match_id":  match_id,
         "home_name": home,
         "away_name": away,
         "date":      m.get("utcDate"),
@@ -38,7 +56,7 @@ def _enrich_match(m: dict) -> dict:
 
 @sports_bet_bp.route("/matches/betting", methods=["GET"])
 def get_betting_matches():
-    """Devuelve próximos partidos del Mundial con cuotas calculadas."""
+    """Devuelve próximos partidos del Mundial con cuotas dinámicas."""
     raw = _football_svc.get_upcoming_matches()
     matches = raw.get("matches", [])
 
@@ -55,12 +73,14 @@ def get_betting_matches():
 
 @sports_bet_bp.route("/matches/<int:match_id>/odds", methods=["GET"])
 def get_match_odds(match_id: int):
-    """Calcula cuotas para un partido específico dado los nombres de los equipos."""
+    """Calcula cuotas dinámicas para un partido específico."""
     home = request.args.get("home", "")
     away = request.args.get("away", "")
     if not home or not away:
         return jsonify({"error": "ERR_BAD_REQUEST", "message": "home y away son requeridos"}), 400
-    odds = calculate_odds(home, away)
+        
+    market = _get_market_volumes(match_id)
+    odds = calculate_odds(home, away, market_volumes=market)
     return jsonify({"match_id": match_id, "home": home, "away": away, "odds": odds}), 200
 
 

@@ -59,7 +59,11 @@ class NotificationService:
             success, error = True, None
             try:
                 from app.infrastructure.external._fcm import send_push
-                send_push(fcm_token, title, body)
+                send_push(fcm_token, title, body, data={
+                    'notif_type': notif_type,
+                    'reference_id': str(reference_id) if reference_id is not None else '',
+                    'reference_type': reference_type or '',
+                })
                 app_logger.info({"event": "fcm_sent", "user_id": user_id, "title": title})
             except Exception as e:
                 success, error = False, str(e)

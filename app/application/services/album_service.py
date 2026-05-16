@@ -41,18 +41,23 @@ class AlbumService:
         
         collections_map = {}
         for s in all_stickers:
+            # Excluir stickers especiales (no pertenecen a un equipo real)
+            if s.category in self._SPECIAL_CATEGORIES or s.team == "WORLD":
+                continue
             team_name = s.team
             if team_name not in collections_map:
                 collections_map[team_name] = set()
             collections_map[team_name].add(s.idSticker)
             
+        flags_map = self._get_flags_mapping()
         collections_list = []
         i = 1
         for team, unique_s in collections_map.items():
             collections_list.append({
                 "id": i,
                 "name": team,
-                "count": len(unique_s)
+                "count": len(unique_s),
+                "flagUrl": flags_map.get(team),
             })
             i += 1
             
@@ -175,27 +180,39 @@ class AlbumService:
 
         album.packBalance -= 1
 
-        # Distribución de rareza por sobre: garantiza al menos 1 Rare
-        rarities = ["Common", "Rare", "Epic", "Legendary"]
-        weights  = [70, 22, 7, 1]
+        # ── Distribución de rareza (7 cartas por sobre) ─────────────────────
+        # Slots 1-5: aleatorio con pesos diferenciados
+        # Slot 6:    garantizado Rare o mejor
+        # Slot 7:    garantizado Epic o mejor (la carta "estrella" del sobre)
+        #
+        # Probabilidades por slot libre:
+        #   Common    60%  │  Rare  28%  │  Epic  9%  │  Legendary  3%
+        STICKERS_PER_PACK = 7
+        _FREE   = ["Common", "Rare",  "Epic", "Legendary"]
+        _W_FREE = [60,        28,      9,      3]
+        _RARE_PLUS  = ["Rare", "Epic", "Legendary"]
+        _W_RARE     = [75,      20,     5]
+        _EPIC_PLUS  = ["Epic", "Legendary"]
+        _W_EPIC     = [80,      20]
 
-        obtained_stickers = []
-        guaranteed_rare_added = False
-        for i in range(5):
-            if i == 4 and not guaranteed_rare_added:
-                # Última carta: fuerza Rare o mejor si el sobre no tuvo ninguna
-                rarity = random.choices(["Rare", "Epic", "Legendary"], weights=[80, 17, 3], k=1)[0]
-            else:
-                rarity = random.choices(rarities, weights=weights, k=1)[0]
-
-            pool = Sticker.query.filter_by(rarity=rarity).all()
+        def _pick(pool_filter):
+            pool = Sticker.query.filter_by(rarity=pool_filter).all()
             if not pool:
                 pool = Sticker.query.all()
-            if pool:
-                card = random.choice(pool)
+            return random.choice(pool) if pool else None
+
+        obtained_stickers = []
+        for slot in range(STICKERS_PER_PACK):
+            if slot == STICKERS_PER_PACK - 1:          # slot 7: Epic+
+                rarity = random.choices(_EPIC_PLUS, weights=_W_EPIC, k=1)[0]
+            elif slot == STICKERS_PER_PACK - 2:        # slot 6: Rare+
+                rarity = random.choices(_RARE_PLUS, weights=_W_RARE, k=1)[0]
+            else:                                       # slots 1-5: libre
+                rarity = random.choices(_FREE, weights=_W_FREE, k=1)[0]
+
+            card = _pick(rarity)
+            if card:
                 obtained_stickers.append(card)
-                if rarity in ("Rare", "Epic", "Legendary"):
-                    guaranteed_rare_added = True
 
         if not obtained_stickers:
             raise ValueError("No hay láminas en la base de datos. Ejecuta el seed primero.")
@@ -408,7 +425,7 @@ class AlbumService:
         )
 
         flags_map = self._get_flags_mapping()
-
+        
         # Agrupar en secciones
         sections: Dict[str, dict] = {}
         for s in all_stickers:
@@ -422,6 +439,7 @@ class AlbumService:
                     "flagUrl": None if is_special else flags_map.get(key),
                     "stickers": [],
                 }
+            
             owned_copies = owned_map.get(s.idSticker, 0)
             sections[key]["stickers"].append({
                 "id":          s.idSticker,

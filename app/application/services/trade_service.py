@@ -14,7 +14,18 @@ class TradeService:
         self.repository = repository
 
     def propose_trade(self, data: dict) -> TradeResponseDTO:
+        from app.domain.models.user import User
+        from app.infrastructure.external.notification_service import notification_service
+        
         dto = TradeProposeDTO(**data)
+        
+        # Resolve receiver_id from email
+        receiver = User.query.filter_by(email=dto.receiver_email).first()
+        if not receiver:
+            raise ValueError(f"No se encontró un usuario con el correo: {dto.receiver_email}")
+            
+        if receiver.idUser == dto.proposer_id:
+            raise ValueError("No puedes intercambiar láminas contigo mismo.")
         
         # Check daily trade limit
         today_start = datetime.combine(date.today(), datetime.min.time())
@@ -30,7 +41,7 @@ class TradeService:
         try:
             trade = TradeProposal(
                 proposer_id=dto.proposer_id,
-                receiver_id=dto.receiver_id,
+                receiver_id=receiver.idUser,
                 offered_sticker_id=dto.offered_sticker_id,
                 requested_sticker_id=dto.requested_sticker_id,
                 status='PENDING_CONFIRMATION'
@@ -39,6 +50,17 @@ class TradeService:
             self.repository.commit()
             
             logger.info({"event": "trade_proposed", "trade_id": saved_trade.id})
+            
+            # Send notification
+            notification_service.notify_user_from_id(
+                user_id=receiver.idUser,
+                title="Nueva solicitud de intercambio",
+                body=f"Un usuario quiere intercambiar su lámina #{dto.offered_sticker_id} por tu lámina #{dto.requested_sticker_id}. Ingresa a la app para aceptar o rechazar.",
+                notif_type="trade",
+                reference_id=saved_trade.id,
+                reference_type="trade_proposal"
+            )
+            
             return TradeResponseDTO.model_validate(saved_trade)
             
         except Exception as e:
