@@ -27,7 +27,7 @@ class MatchService:
 
     def update_match_status(self, match_id: int, new_status: str) -> MatchResponseDTO:
         import logging
-        from datetime import datetime
+        from datetime import datetime, timezone
         logger = logging.getLogger(__name__)
 
         match = self.repository.get_by_id(match_id)
@@ -44,7 +44,7 @@ class MatchService:
             "match_id": match_id,
             "old_status": old_status,
             "new_status": new_status,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
         return MatchResponseDTO(**saved_match)

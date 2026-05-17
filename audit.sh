@@ -8,7 +8,7 @@ pip install pip-audit
 echo "Auditing requirements.txt..."
 pip-audit -r requirements.txt
 
-if [ $? -eq 0 ]; then
+if [[ $? -eq 0 ]]; then
     echo "Sec audit passed successfully."
 else
     echo "Sec audit failed. Vulnerabilities found!"

@@ -7,6 +7,8 @@ from pydantic import ValidationError
 
 user_bp = Blueprint('user_bp', __name__)
 
+_ERR_DB = "DB error"
+
 user_repo = SqlAlchemyUserRepository()
 user_service = UserService(user_repo)
 
@@ -52,7 +54,7 @@ def get_user_notifications(user_id):
             })
         return jsonify(results), 200
     except Exception as exc:
-        return jsonify({"error": "DB error", "details": str(exc)}), 500
+        return jsonify({"error": _ERR_DB, "details": str(exc)}), 500
 
 @user_bp.route('/users/<int:user_id>/profile-picture', methods=['PUT'])
 def update_profile_picture(user_id):
@@ -69,7 +71,7 @@ def update_profile_picture(user_id):
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": "DB error", "details": str(exc)}), 500
+        return jsonify({"error": _ERR_DB, "details": str(exc)}), 500
 
     return jsonify({"ok": True, "user_id": user_id, "profilePicture": user.profilePicture}), 200
 
@@ -133,6 +135,6 @@ def update_fcm_token(user_id):
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": "DB error", "details": str(exc)}), 500
+        return jsonify({"error": _ERR_DB, "details": str(exc)}), 500
 
     return jsonify({"ok": True, "user_id": user_id}), 200

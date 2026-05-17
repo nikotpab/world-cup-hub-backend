@@ -6,6 +6,7 @@ from app.infrastructure.logger import app_logger
 
 WC_CODE = "WC"
 _CACHE_TTL = 300  # 5 minutes
+_NOTE_PROVISIONAL = "Datos provisionales"
 
 
 class FootballDataService:
@@ -77,7 +78,7 @@ class FootballDataService:
             raw = redis_client.get(f"stale:{cache_key}")
             if raw:
                 data = json.loads(raw)
-                data["note"] = "Datos provisionales — última actualización pendiente"
+                data["note"] = f"{_NOTE_PROVISIONAL} — última actualización pendiente"
                 return data
         except Exception:
             pass
@@ -125,7 +126,7 @@ class FootballDataService:
         data = self._get_with_stale(f"/competitions/{WC_CODE}/matches", params={"status": "IN_PLAY,LIVE"})
         if data:
             return data
-        return {"matches": [], "note": "Sin partidos en vivo (datos provisionales)"}
+        return {"matches": [], "note": f"Sin partidos en vivo ({_NOTE_PROVISIONAL.lower()})"}
 
     def get_match(self, match_id: int):
         return self._get_with_stale(f"/matches/{match_id}")
@@ -149,7 +150,7 @@ class FootballDataService:
             {"id": 799, "name": "USA",        "shortName": "USA",        "tla": "USA"},
             {"id": 801, "name": "Mexico",     "shortName": "Mexico",     "tla": "MEX"},
             {"id": 771, "name": "Portugal",   "shortName": "Portugal",   "tla": "POR"},
-        ], "note": "Datos provisionales"}
+        ], "note": _NOTE_PROVISIONAL}
 
     def get_team_with_squad(self, team_id: int):
         data = self._get_with_stale(f"/teams/{team_id}")
@@ -178,7 +179,7 @@ class FootballDataService:
                     "homeTeam": {"name": "Mexico",  "tla": "MEX"},
                     "awayTeam": {"name": "Canada",  "tla": "CAN"},
                     "score": {"fullTime": {"home": None, "away": None}},
-                    "note": "Datos provisionales",
+                    "note": _NOTE_PROVISIONAL,
                 },
                 {
                     "id": 2, "status": "SCHEDULED",
@@ -186,8 +187,8 @@ class FootballDataService:
                     "homeTeam": {"name": "Argentina", "tla": "ARG"},
                     "awayTeam": {"name": "Colombia",  "tla": "COL"},
                     "score": {"fullTime": {"home": None, "away": None}},
-                    "note": "Datos provisionales",
+                    "note": _NOTE_PROVISIONAL,
                 },
             ],
-            "note": "Datos provisionales — API no configurada",
+            "note": f"{_NOTE_PROVISIONAL} — API no configurada",
         }

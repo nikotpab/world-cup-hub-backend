@@ -38,6 +38,37 @@ class NotificationService:
     y registra la evidencia en la BD.
     """
 
+    def _send_push(self, db, user_id, fcm_token, title, body,
+                   notif_type, reference_id, reference_type) -> str:
+        success, error = True, None
+        try:
+            from app.infrastructure.external._fcm import send_push
+            send_push(fcm_token, title, body, data={
+                'notif_type':     notif_type,
+                'reference_id':   str(reference_id) if reference_id is not None else '',
+                'reference_type': reference_type or '',
+            })
+            app_logger.info({"event": "fcm_sent", "user_id": user_id, "title": title})
+        except Exception as e:
+            success, error = False, str(e)
+            app_logger.error({"event": "fcm_error", "user_id": user_id, "details": str(e)})
+        _log_attempt(db, user_id, "push", fcm_token, title, body, success, error,
+                     notif_type=notif_type, reference_id=reference_id, reference_type=reference_type)
+        return "ok" if success else f"error: {error}"
+
+    def _send_email(self, db, user_id, email, title, body,
+                    notif_type, reference_id, reference_type) -> str:
+        success, error = True, None
+        try:
+            from app.infrastructure.external.email_service import SendGridEmailService
+            SendGridEmailService().send_email(email, title, f"<h2>{title}</h2><p>{body}</p>")
+        except Exception as e:
+            success, error = False, str(e)
+            app_logger.error({"event": "email_error", "user_id": user_id, "details": str(e)})
+        _log_attempt(db, user_id, "email", email, title, body, success, error,
+                     notif_type=notif_type, reference_id=reference_id, reference_type=reference_type)
+        return "ok" if success else f"error: {error}"
+
     def notify(
         self,
         *,
@@ -49,7 +80,7 @@ class NotificationService:
         notif_type: str = "general",
         reference_id: Optional[int] = None,
         reference_type: Optional[str] = None,
-        channels: Optional[List[str]] = None,  # ['push', 'email'] — default: ambos
+        channels: Optional[List[str]] = None,
     ) -> dict:
         from app.infrastructure.database import db
 
@@ -57,53 +88,23 @@ class NotificationService:
             channels = ["push", "email"]
 
         results = {}
-
-        # ── FCM push ────────────────────────────────────────────────────────
         if "push" in channels and fcm_token:
-            success, error = True, None
-            try:
-                from app.infrastructure.external._fcm import send_push
-                send_push(fcm_token, title, body, data={
-                    'notif_type': notif_type,
-                    'reference_id': str(reference_id) if reference_id is not None else '',
-                    'reference_type': reference_type or '',
-                })
-                app_logger.info({"event": "fcm_sent", "user_id": user_id, "title": title})
-            except Exception as e:
-                success, error = False, str(e)
-                app_logger.error({"event": "fcm_error", "user_id": user_id, "details": str(e)})
-            _log_attempt(db, user_id, "push", fcm_token, title, body, success, error,
-                        notif_type=notif_type, reference_id=reference_id, reference_type=reference_type)
-            results["push"] = "ok" if success else f"error: {error}"
-
-        # ── Email (SendGrid) ─────────────────────────────────────────────────
+            results["push"] = self._send_push(
+                db, user_id, fcm_token, title, body, notif_type, reference_id, reference_type
+            )
         if "email" in channels and email:
-            success, error = True, None
-            try:
-                from app.infrastructure.external.email_service import SendGridEmailService
-                html = f"<h2>{title}</h2><p>{body}</p>"
-                SendGridEmailService().send_email(email, title, html)
-            except Exception as e:
-                success, error = False, str(e)
-                app_logger.error({"event": "email_error", "user_id": user_id, "details": str(e)})
-            _log_attempt(db, user_id, "email", email, title, body, success, error,
-                        notif_type=notif_type, reference_id=reference_id, reference_type=reference_type)
-            results["email"] = "ok" if success else f"error: {error}"
+            results["email"] = self._send_email(
+                db, user_id, email, title, body, notif_type, reference_id, reference_type
+            )
 
-        # ── Persistir en tabla notification ──────────────────────────────────
         try:
             from app.domain.models.notification import Notification
-            notif = Notification(
-                message=body,
-                title=title,
-                channel=",".join(channels),
-                notifType=notif_type,
-                userId=user_id,
-                referenceId=reference_id,
-                referenceType=reference_type,
+            db.session.add(Notification(
+                message=body, title=title, channel=",".join(channels),
+                notifType=notif_type, userId=user_id,
+                referenceId=reference_id, referenceType=reference_type,
                 status="sent" if results else "pending",
-            )
-            db.session.add(notif)
+            ))
             db.session.commit()
         except Exception:
             db.session.rollback()

@@ -216,11 +216,14 @@ def _ensure_rarities(db):
     return rarity_map
 
 
-def _upsert(db, Sticker, rarity_map, *, panini_code, name, team, category, rarity):
-    existing = Sticker.query.filter_by(paniniCode=str(panini_code)).first()
+_TEAM_CREST = "TEAM CREST"
+
+
+def _upsert(db, sticker_model, rarity_map, *, panini_code, name, team, category, rarity):
+    existing = sticker_model.query.filter_by(paniniCode=str(panini_code)).first()
     if existing:
         return 0
-    st = Sticker(
+    st = sticker_model(
         name=name,
         category=category,
         rarity=rarity,
@@ -261,7 +264,7 @@ def sync():
             for item in team_data["items"]:
                 tipo = item.get("tipo")
                 nombre = item["nombre"]
-                if nombre == "TEAM CREST":
+                if nombre == _TEAM_CREST:
                     category, rarity = "Team Crest", "Rare"
                 elif tipo == "IC":
                     category, rarity = "Icon Card", "Legendary"
@@ -295,7 +298,37 @@ def sync():
         print(f"Total stickers en BD: {Sticker.query.count()}")
 
 
-def _sync_from_api(db, Sticker, rarity_map) -> int:
+_LEGENDARIES = frozenset({
+    "Lionel Messi", "Cristiano Ronaldo", "Kylian Mbappé", "Neymar Jr", "Lamine Yamal"
+})
+_EPICS = frozenset({
+    "Vinicius Junior", "Jude Bellingham", "Harry Kane", "Erling Haaland",
+    "Rodri", "Kevin De Bruyne", "Mohamed Salah", "Heung-Min Son",
+})
+
+
+def _get_player_rarity(p_name: str) -> str:
+    if p_name in _LEGENDARIES:
+        return "Legendary"
+    if p_name in _EPICS:
+        return "Epic"
+    return "Common"
+
+
+def _fetch_team_squad(api_url: str, team: dict, headers: dict) -> list:
+    squad = team.get("squad") or []
+    if squad:
+        return squad
+    try:
+        import requests
+        t_resp = requests.get(f"{api_url}/teams/{team['id']}", headers=headers, timeout=15)
+        t_resp.raise_for_status()
+        return t_resp.json().get("squad", [])
+    except Exception:
+        return []
+
+
+def _sync_from_api(db, sticker_model, rarity_map) -> int:
     import os, requests
     api_url = os.environ.get("FOOTBALL_API_URL", "https://api.football-data.org/v4")
     api_key = os.environ.get("FOOTBALL_API_KEY", "")
@@ -305,15 +338,6 @@ def _sync_from_api(db, Sticker, rarity_map) -> int:
 
     headers = {"X-Auth-Token": api_key}
     added = 0
-
-    # Rareza de jugadores estrella conocidos
-    _LEGENDARIES = {
-        "Lionel Messi", "Cristiano Ronaldo", "Kylian Mbappé", "Neymar Jr", "Lamine Yamal"
-    }
-    _EPICS = {
-        "Vinicius Junior", "Jude Bellingham", "Harry Kane", "Erling Haaland",
-        "Rodri", "Kevin De Bruyne", "Mohamed Salah", "Heung-Min Son",
-    }
 
     try:
         resp = requests.get(f"{api_url}/competitions/WC/teams", headers=headers, timeout=15)
@@ -326,34 +350,18 @@ def _sync_from_api(db, Sticker, rarity_map) -> int:
     for team in teams:
         team_name = team.get("shortName") or team.get("name", "UNKNOWN")
         tla = team.get("tla", team_name[:3].upper())
-        squad = team.get("squad") or []
-
-        # Si la respuesta no trae squad, solicitarlo individualmente
-        if not squad:
-            try:
-                t_resp = requests.get(f"{api_url}/teams/{team['id']}", headers=headers, timeout=15)
-                t_resp.raise_for_status()
-                squad = t_resp.json().get("squad", [])
-            except Exception:
-                pass
+        squad = _fetch_team_squad(api_url, team, headers)
 
         for idx, player in enumerate(squad):
             p_name = player.get("name", "")
             if not p_name:
                 continue
-            # paniniCode sintético para jugadores de API: TLA-IDX
             synthetic_code = f"{tla}-{player.get('id', idx)}"
-            if Sticker.query.filter_by(paniniCode=synthetic_code).first():
+            if sticker_model.query.filter_by(paniniCode=synthetic_code).first():
                 continue
 
-            if p_name in _LEGENDARIES:
-                rarity = "Legendary"
-            elif p_name in _EPICS:
-                rarity = "Epic"
-            else:
-                rarity = "Common"
-
-            st = Sticker(
+            rarity = _get_player_rarity(p_name)
+            st = sticker_model(
                 name=p_name,
                 category="Player",
                 rarity=rarity,

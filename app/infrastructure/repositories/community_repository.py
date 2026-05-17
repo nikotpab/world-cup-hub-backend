@@ -36,7 +36,7 @@ class SqlAlchemyCommunityRepository(ICommunityRepository):
             Match.status == 'FINISHED'
         ).all()
         
-        user_scores = {uid: 0 for uid in user_ids}
+        user_scores = dict.fromkeys(user_ids, 0)
         for bet, match in bets_and_matches:
             points = 0
             if bet.home_goals == match.home_goals and bet.away_goals == match.away_goals:

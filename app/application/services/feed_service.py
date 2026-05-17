@@ -49,6 +49,7 @@ def _post_dict(post: Post, viewer_id: int) -> Dict:
 
 
 class FeedService:
+    _ERR_POST_NOT_FOUND = "Publicación no encontrada."
 
     # ── Posts ────────────────────────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ class FeedService:
     def edit_post(self, post_id: int, user_id: int, content: str) -> Dict:
         post = Post.query.get(post_id)
         if not post:
-            raise ValueError("Publicación no encontrada.")
+            raise ValueError(self._ERR_POST_NOT_FOUND)
         if post.user_id != user_id:
             raise PermissionError("No puedes editar esta publicación.")
         post.content = content.strip()
@@ -89,7 +90,7 @@ class FeedService:
     def delete_post(self, post_id: int, user_id: int) -> None:
         post = Post.query.get(post_id)
         if not post:
-            raise ValueError("Publicación no encontrada.")
+            raise ValueError(self._ERR_POST_NOT_FOUND)
         if post.user_id != user_id:
             raise PermissionError("No puedes eliminar esta publicación.")
         db.session.delete(post)
@@ -98,7 +99,7 @@ class FeedService:
     def toggle_like(self, post_id: int, user_id: int) -> Dict:
         post = Post.query.get(post_id)
         if not post:
-            raise ValueError("Publicación no encontrada.")
+            raise ValueError(self._ERR_POST_NOT_FOUND)
         existing = PostLike.query.filter_by(post_id=post_id, user_id=user_id).first()
         if existing:
             db.session.delete(existing)
@@ -142,7 +143,7 @@ class FeedService:
         if not content.strip():
             raise ValueError("El comentario no puede estar vacío.")
         if not Post.query.get(post_id):
-            raise ValueError("Publicación no encontrada.")
+            raise ValueError(self._ERR_POST_NOT_FOUND)
         if parent_id and not PostComment.query.get(parent_id):
             raise ValueError("Comentario padre no encontrado.")
         c = PostComment(post_id=post_id, user_id=user_id,

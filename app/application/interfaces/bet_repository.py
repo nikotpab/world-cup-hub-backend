@@ -4,22 +4,22 @@ from app.domain.models.match import Match
 
 class IBetRepository:
     def get_bet_by_id(self, bet_id: int) -> Optional[Bet]:
-        pass
+        raise NotImplementedError
 
     def get_bet_by_user_match(self, user_id: int, match_id: int) -> Optional[Bet]:
-        pass
+        raise NotImplementedError
 
     def save_bet(self, bet: Bet) -> Bet:
-        pass
+        raise NotImplementedError
 
     def get_match_by_id(self, match_id: int) -> Optional[Match]:
-        pass
+        raise NotImplementedError
 
     def flush(self) -> None:
-        pass
+        raise NotImplementedError
 
     def commit(self) -> None:
-        pass
+        raise NotImplementedError
 
     def rollback(self) -> None:
-        pass
+        raise NotImplementedError

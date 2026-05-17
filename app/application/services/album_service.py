@@ -1,6 +1,6 @@
 from typing import Dict, Any, List
 import random
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from sqlalchemy import func
 from app.infrastructure.database import db
 from app.domain.models.album import Album, sticker_album
@@ -9,9 +9,6 @@ from app.domain.models.sticker import Sticker
 from app.domain.models.promo_code import PromoCode, PromoCodeUsage
 
 class AlbumService:
-    def __init__(self):
-        pass
-
     DAILY_FREE_PACKS = 3  # packs regalados cada día automáticamente
 
     def _auto_claim_daily(self, album: "Album") -> None:
@@ -44,7 +41,7 @@ class AlbumService:
             
         all_stickers = album.stickers
             
-        unique_stickers = set([s.idSticker for s in all_stickers])
+        unique_stickers = {s.idSticker for s in all_stickers}
         repeated_stickers_count = len(all_stickers) - len(unique_stickers)
         
         total_available = Sticker.query.count() or 600
@@ -78,9 +75,9 @@ class AlbumService:
                 {"id": 3, "name": "Selección Francia"}
             ]
 
-        completion_percentage = 0
+        completion_percentage = 0.0
         if total_available > 0:
-            completion_percentage = int((len(unique_stickers) / total_available) * 100)
+            completion_percentage = round((len(unique_stickers) / total_available) * 100, 1)
 
         return {
             "completion_percentage": completion_percentage,
@@ -121,7 +118,7 @@ class AlbumService:
         if not promo:
             raise ValueError("Código promocional inválido.")
             
-        if promo.expiryDate and promo.expiryDate < datetime.utcnow():
+        if promo.expiryDate and promo.expiryDate < datetime.now(timezone.utc).replace(tzinfo=None):
             raise ValueError("El código promocional ha expirado.")
             
         if promo.maxUses is not None and promo.currentUses >= promo.maxUses:
@@ -195,21 +192,6 @@ class AlbumService:
 
         album.packBalance -= 1
 
-        # ── Distribución de rareza (7 cartas por sobre) ─────────────────────
-        # Slots 1-5: aleatorio con pesos diferenciados
-        # Slot 6:    garantizado Rare o mejor
-        # Slot 7:    garantizado Epic o mejor (la carta "estrella" del sobre)
-        #
-        # Probabilidades por slot libre:
-        #   Common    60%  │  Rare  28%  │  Epic  9%  │  Legendary  3%
-        STICKERS_PER_PACK = 7
-        _FREE   = ["Common", "Rare",  "Epic", "Legendary"]
-        _W_FREE = [60,        28,      9,      3]
-        _RARE_PLUS  = ["Rare", "Epic", "Legendary"]
-        _W_RARE     = [75,      20,     5]
-        _EPIC_PLUS  = ["Epic", "Legendary"]
-        _W_EPIC     = [80,      20]
-
         def _pick(pool_filter):
             pool = Sticker.query.filter_by(rarity=pool_filter).all()
             if not pool:
@@ -217,15 +199,8 @@ class AlbumService:
             return random.choice(pool) if pool else None
 
         obtained_stickers = []
-        for slot in range(STICKERS_PER_PACK):
-            if slot == STICKERS_PER_PACK - 1:          # slot 7: Epic+
-                rarity = random.choices(_EPIC_PLUS, weights=_W_EPIC, k=1)[0]
-            elif slot == STICKERS_PER_PACK - 2:        # slot 6: Rare+
-                rarity = random.choices(_RARE_PLUS, weights=_W_RARE, k=1)[0]
-            else:                                       # slots 1-5: libre
-                rarity = random.choices(_FREE, weights=_W_FREE, k=1)[0]
-
-            card = _pick(rarity)
+        for slot in range(self._STICKERS_PER_PACK):
+            card = _pick(self._pick_rarity_for_slot(slot))
             if card:
                 obtained_stickers.append(card)
 
@@ -243,31 +218,12 @@ class AlbumService:
         db.session.commit()
         db.session.expire(album)
 
-        # Detectar y notificar hitos de álbum
-        try:
-            total_stickers = Sticker.query.count() or 600
-            owned_after = db.session.query(func.count(sticker_album.c.id_sticker.distinct())).filter(
-                sticker_album.c.id_album == album.idAlbum
-            ).scalar() or 0
-            pct_before = int(owned_before / total_stickers * 100) if total_stickers else 0
-            pct_after = int(owned_after / total_stickers * 100) if total_stickers else 0
-            for milestone in [25, 50, 75, 100]:
-                if pct_before < milestone <= pct_after:
-                    from app.infrastructure.external.notification_service import notification_service
-                    notification_service.notify_user_from_id(
-                        user_id=user_id,
-                        title="🏆 ¡Hito alcanzado!",
-                        body=f"¡Felicidades! Has completado el {milestone}% de tu álbum.",
-                        notif_type="album_milestone",
-                    )
-                    break
-        except Exception:
-            pass
+        self._notify_album_milestone(user_id, album, owned_before)
 
         return {
-            "success": True,
-            "message": "¡Has abierto un sobre!",
-            "packs_today": packs_today + 1,
+            "success":               True,
+            "message":               "¡Has abierto un sobre!",
+            "packs_today":           packs_today + 1,
             "packs_remaining_today": self.DAILY_PACK_LIMIT - (packs_today + 1),
             "stickers": [
                 {
@@ -362,6 +318,63 @@ class AlbumService:
     # Orden de presentación: especiales primero, luego equipos A-Z
     _SPECIAL_ORDER = {k: i for i, k in enumerate(_SPECIAL_CATEGORIES)}
 
+    _STICKERS_PER_PACK = 7
+    _FREE       = ["Common", "Rare", "Epic", "Legendary"]
+    _W_FREE     = [60, 28, 9, 3]
+    _RARE_PLUS  = ["Rare", "Epic", "Legendary"]
+    _W_RARE     = [75, 20, 5]
+    _EPIC_PLUS  = ["Epic", "Legendary"]
+    _W_EPIC     = [80, 20]
+
+    def _pick_rarity_for_slot(self, slot: int) -> str:
+        if slot == self._STICKERS_PER_PACK - 1:
+            return random.choices(self._EPIC_PLUS, weights=self._W_EPIC, k=1)[0]
+        if slot == self._STICKERS_PER_PACK - 2:
+            return random.choices(self._RARE_PLUS, weights=self._W_RARE, k=1)[0]
+        return random.choices(self._FREE, weights=self._W_FREE, k=1)[0]
+
+    def _notify_album_milestone(self, user_id: int, album, owned_before: int) -> None:
+        try:
+            total_stickers = Sticker.query.count() or 600
+            owned_after = (
+                db.session.query(func.count(sticker_album.c.id_sticker.distinct()))
+                .filter(sticker_album.c.id_album == album.idAlbum)
+                .scalar() or 0
+            )
+            pct_before = int(owned_before / total_stickers * 100) if total_stickers else 0
+            pct_after = int(owned_after / total_stickers * 100) if total_stickers else 0
+            for milestone in [25, 50, 75, 100]:
+                if pct_before < milestone <= pct_after:
+                    from app.infrastructure.external.notification_service import notification_service
+                    notification_service.notify_user_from_id(
+                        user_id=user_id,
+                        title="🏆 ¡Hito alcanzado!",
+                        body=f"¡Felicidades! Has completado el {milestone}% de tu álbum.",
+                        notif_type="album_milestone",
+                    )
+                    break
+        except Exception:
+            pass
+
+    def _build_section_entry(self, key: str, flags_map: dict) -> dict:
+        is_special = key in self._SPECIAL_CATEGORIES
+        return {
+            "key":      key,
+            "label":    key.title(),
+            "type":     "special" if is_special else "team",
+            "flagUrl":  None if is_special else flags_map.get(key),
+            "stickers": [],
+        }
+
+    @staticmethod
+    def _finalize_section(sec: dict) -> dict:
+        total = len(sec["stickers"])
+        owned_n = sum(1 for st in sec["stickers"] if st["owned"])
+        sec["total"] = total
+        sec["owned_count"] = owned_n
+        sec["completion_pct"] = round(owned_n / total * 100, 1) if total else 0
+        return sec
+
     def _get_flags_mapping(self):
         try:
             from app.infrastructure.external.football_data_service import FootballDataService
@@ -429,9 +442,9 @@ class AlbumService:
                 if en in en_to_crest:
                     mapping[es] = en_to_crest[en]
             return mapping
-        except Exception as e:
+        except Exception:
             import logging
-            logging.getLogger(__name__).error(f"Error fetching flags: {e}")
+            logging.exception("Error fetching flags")
             return {}
 
     def get_album_progress(self, user_id: int) -> Dict[str, Any]:
@@ -461,21 +474,12 @@ class AlbumService:
         )
 
         flags_map = self._get_flags_mapping()
-        
-        # Agrupar en secciones
+
         sections: Dict[str, dict] = {}
         for s in all_stickers:
             key = s.category if s.category in self._SPECIAL_CATEGORIES else s.team
             if key not in sections:
-                is_special = key in self._SPECIAL_CATEGORIES
-                sections[key] = {
-                    "key":    key,
-                    "label":  key.title(),
-                    "type":   "special" if is_special else "team",
-                    "flagUrl": None if is_special else flags_map.get(key),
-                    "stickers": [],
-                }
-            
+                sections[key] = self._build_section_entry(key, flags_map)
             owned_copies = owned_map.get(s.idSticker, 0)
             sections[key]["stickers"].append({
                 "id":          s.idSticker,
@@ -490,17 +494,7 @@ class AlbumService:
                 "copies":      owned_copies,
             })
 
-        # Calcular totales por sección y ordenar
-        sections_list = []
-        for sec in sections.values():
-            total   = len(sec["stickers"])
-            owned_n = sum(1 for st in sec["stickers"] if st["owned"])
-            sec["total"]          = total
-            sec["owned_count"]    = owned_n
-            sec["completion_pct"] = round(owned_n / total * 100, 1) if total else 0
-            sections_list.append(sec)
-
-        # Especiales primero, luego equipos A-Z
+        sections_list = [self._finalize_section(sec) for sec in sections.values()]
         sections_list.sort(key=lambda s: (
             0 if s["type"] == "special" else 1,
             self._SPECIAL_ORDER.get(s["key"], 99) if s["type"] == "special" else s["key"],
