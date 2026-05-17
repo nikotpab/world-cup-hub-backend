@@ -73,6 +73,50 @@ def update_profile_picture(user_id):
 
     return jsonify({"ok": True, "user_id": user_id, "profilePicture": user.profilePicture}), 200
 
+
+# ── Evidencia de notificaciones (soporte / auditoría) ─────────────────────────
+@user_bp.route('/admin/notification-log', methods=['GET'])
+def get_notification_log():
+    """
+    Historial de notificaciones enviadas — para soporte y auditoría.
+    Parámetros opcionales: user_id, channel (push|email), notif_type, limit (máx 500).
+    """
+    from app.domain.models.notification_history import NotificationHistory
+    try:
+        limit      = min(int(request.args.get('limit', 100)), 500)
+        user_id    = request.args.get('user_id', type=int)
+        channel    = request.args.get('channel')
+        notif_type = request.args.get('notif_type')
+        success    = request.args.get('success')
+
+        q = NotificationHistory.query
+        if user_id:
+            q = q.filter_by(userId=user_id)
+        if channel:
+            q = q.filter_by(channel=channel)
+        if notif_type:
+            q = q.filter_by(notifType=notif_type)
+        if success is not None:
+            q = q.filter_by(success=success.lower() == 'true')
+
+        entries = q.order_by(NotificationHistory.date.desc()).limit(limit).all()
+        return jsonify([{
+            "id":             e.idHistory,
+            "user_id":        e.userId,
+            "channel":        e.channel,
+            "recipient":      e.recipient,
+            "subject":        e.subject,
+            "body":           e.body,
+            "success":        e.success,
+            "error_msg":      e.error_msg,
+            "notif_type":     e.notifType,
+            "reference_id":   e.referenceId,
+            "reference_type": e.referenceType,
+            "date":           e.date.isoformat() if e.date else None,
+        } for e in entries]), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
 @user_bp.route('/users/<int:user_id>/fcm-token', methods=['POST'])
 def update_fcm_token(user_id):
     data = request.get_json() or {}

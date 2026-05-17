@@ -165,6 +165,34 @@ class AuthService:
         if user.get("accountStatus") != 'activo':
             raise ValueError("Tu cuenta está suspendida.")
 
+        # MFA: Generar código, guardarlo y enviarlo por correo
+        mfa_code = self._generate_verification_code()
+        user["verificationCode"] = mfa_code
+        self.user_repository.save(user)
+        self._send_verification_email(email, mfa_code)
+
+        return {
+            "requires_mfa": True,
+            "email": email,
+            "message": "Código de autenticación (MFA) enviado a tu correo."
+        }
+
+    def verify_mfa(self, data: dict) -> Dict[str, Any]:
+        email = data.get("email")
+        code = data.get("code")
+
+        if not email or not code:
+            raise ValueError("Email y código requeridos")
+
+        user = self.user_repository.get_by_email(email)
+        if not user or user.get("verificationCode") != code:
+            raise ValueError("Código inválido o expirado")
+
+        # Limpiar el código después de verificar el MFA
+        user["verificationCode"] = None
+        self.user_repository.save(user)
+
+        # Generar JWT Token
         secret_key = current_app.config.get('JWT_SECRET_KEY') or current_app.config.get('SECRET_KEY') or 'secret'
         payload = {
             "userId": user.get("userId"),

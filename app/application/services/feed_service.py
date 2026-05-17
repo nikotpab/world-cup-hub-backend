@@ -108,6 +108,24 @@ class FeedService:
             liked = True
         db.session.commit()
         count = PostLike.query.filter_by(post_id=post_id).count()
+
+        if liked and post.user_id != user_id:
+            try:
+                from app.infrastructure.external.notification_service import notification_service
+                liker = User.query.get(user_id)
+                name = liker.firstName if liker else "Alguien"
+                notification_service.notify_user_from_id(
+                    user_id=post.user_id,
+                    title="❤️ Nueva reacción",
+                    body=f"A {name} le gustó tu publicación.",
+                    notif_type="community_like",
+                    reference_id=post_id,
+                    reference_type="post",
+                    channels=["push"],
+                )
+            except Exception:
+                pass
+
         return {"liked": liked, "likeCount": count}
 
     # ── Comments ─────────────────────────────────────────────────────────────
@@ -132,6 +150,42 @@ class FeedService:
         db.session.add(c)
         db.session.commit()
         db.session.refresh(c)
+
+        try:
+            from app.infrastructure.external.notification_service import notification_service
+            post = Post.query.get(post_id)
+            commenter = User.query.get(user_id)
+            commenter_name = commenter.firstName if commenter else "Alguien"
+            snippet = content.strip()[:60] + ("..." if len(content.strip()) > 60 else "")
+
+            # Notificar al autor del post (si no es el mismo)
+            if post and post.user_id != user_id:
+                notification_service.notify_user_from_id(
+                    user_id=post.user_id,
+                    title="💬 Nuevo comentario",
+                    body=f"{commenter_name} comentó tu publicación: \"{snippet}\"",
+                    notif_type="community_comment",
+                    reference_id=post_id,
+                    reference_type="post",
+                    channels=["push"],
+                )
+
+            # Notificar al autor del comentario padre si es una respuesta
+            if parent_id:
+                parent = PostComment.query.get(parent_id)
+                if parent and parent.user_id != user_id:
+                    notification_service.notify_user_from_id(
+                        user_id=parent.user_id,
+                        title="↩️ Alguien respondió tu comentario",
+                        body=f"{commenter_name} respondió: \"{snippet}\"",
+                        notif_type="community_reply",
+                        reference_id=post_id,
+                        reference_type="post",
+                        channels=["push"],
+                    )
+        except Exception:
+            pass
+
         return _comment_dict(c, user_id)
 
     def delete_comment(self, comment_id: int, user_id: int) -> None:
