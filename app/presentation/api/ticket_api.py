@@ -177,11 +177,11 @@ def _parse_match_datetime(date_str: str):
         return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _ensure_match(Match, home, away, match_dt, price):
-    existing = Match.query.filter_by(home_team_name=home, away_team_name=away).first()
+def _ensure_match(match_model, home, away, match_dt, price):
+    existing = match_model.query.filter_by(home_team_name=home, away_team_name=away).first()
     if existing:
         return existing, 0
-    match_obj = Match(
+    match_obj = match_model(
         scheduledAt=match_dt,
         home_team_name=home,
         away_team_name=away,
