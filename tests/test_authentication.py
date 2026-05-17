@@ -5,6 +5,7 @@ from argon2 import PasswordHasher
 ph = PasswordHasher()
 import jwt
 import datetime
+from datetime import timezone as _tz
 from app.application.services.AuthenticationService import AuthenticationService, AuthenticationError, ValidationError, JWT_SECRET_KEYS
 
 import sys
@@ -76,7 +77,7 @@ class TestAuthenticationService:
         mock_cur, _ = mock_db_cursor
         mock_cur.fetchone.return_value = {
             'failed_attempts': 5, 
-            'lock_until': datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+            'lock_until': datetime.datetime.now(_tz.utc).replace(tzinfo=None) + datetime.timedelta(minutes=15)
         }
         
         with pytest.raises(AuthenticationError) as exc:
@@ -87,7 +88,7 @@ class TestAuthenticationService:
     def test_verify_expired_token(self):
         payload = {
             'user_id': 1,
-            'exp': datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+            'exp': datetime.datetime.now(_tz.utc) - datetime.timedelta(hours=1)
         }
         token = jwt.encode(payload, JWT_SECRET_KEYS[0], algorithm="HS256")
         

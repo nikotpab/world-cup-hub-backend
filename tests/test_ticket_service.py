@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 from app.application.services.TicketingService import TicketingService, TicketingError
 
@@ -49,7 +49,7 @@ class TestTicketingService:
     def test_process_payment_success(self, mock_query, mock_commit, mock_ticket):
         mock_ticket.status = 'Reservada'
         mock_ticket.userId = 42
-        mock_ticket.expirationDate = datetime.utcnow() + timedelta(minutes=10)
+        mock_ticket.expirationDate = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=10)
         mock_query.get.return_value = mock_ticket
 
         result = TicketingService.process_payment(ticket_id=101, user_id=42, payment_token="tok_sandbox_success")
@@ -74,7 +74,7 @@ class TestTicketingService:
     def test_process_payment_expired(self, mock_query, mock_ticket):
         mock_ticket.status = 'Reservada'
         mock_ticket.userId = 42
-        mock_ticket.expirationDate = datetime.utcnow() - timedelta(minutes=5)
+        mock_ticket.expirationDate = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5)
         mock_query.get.return_value = mock_ticket
 
         with pytest.raises(TicketingError) as excinfo:

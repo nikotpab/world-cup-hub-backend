@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 from app.application.services.GamificationService import GamificationService, GamificationError
 
@@ -7,7 +7,7 @@ from app.application.services.GamificationService import GamificationService, Ga
 def mock_match():
     match = MagicMock()
     match.matchId = 1
-    match.scheduledAt = datetime.utcnow() + timedelta(hours=2)
+    match.scheduledAt = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=2)
     return match
 
 @pytest.fixture
@@ -37,7 +37,7 @@ class TestGamificationService:
 
     @patch('src.models.match.Match.query')
     def test_submit_prediction_late(self, mock_match_query, mock_match):
-        mock_match.scheduledAt = datetime.utcnow() - timedelta(minutes=10)
+        mock_match.scheduledAt = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=10)
         mock_match_query.get.return_value = mock_match
 
         with pytest.raises(GamificationError) as excinfo:

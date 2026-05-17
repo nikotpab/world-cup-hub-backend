@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 from app.application.services.bet_service import BetService
 from app.application.dtos.bet_dto import BetCreateDTO
@@ -17,7 +17,7 @@ def bet_service(mock_repo):
 
 def test_create_bet_success(bet_service, mock_repo):
     # Setup
-    match_time = datetime.utcnow() + timedelta(hours=1)
+    match_time = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1)
     match = Match(matchId=1, scheduledAt=match_time)
     mock_repo.get_match_by_id.return_value = match
     mock_repo.get_bet_by_user_match.return_value = None
@@ -46,7 +46,7 @@ def test_create_bet_success(bet_service, mock_repo):
 
 def test_create_bet_too_late(bet_service, mock_repo):
     # Setup: Match starts in 10 minutes (closure is 15 min before)
-    match_time = datetime.utcnow() + timedelta(minutes=10)
+    match_time = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=10)
     match = Match(matchId=1, scheduledAt=match_time)
     mock_repo.get_match_by_id.return_value = match
     
