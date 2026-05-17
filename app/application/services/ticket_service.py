@@ -123,6 +123,21 @@ class TicketService:
                              "user_id": dto.userId, "stripe_intent": payment_result["intent_id"], "audit": True})
 
             ticket = self.repository.get_by_id(ticket_id)
+
+            try:
+                from app.infrastructure.external.notification_service import notification_service
+                match_detail = ticket.get("match_details") or f"Partido #{ticket.get('matchId', '?')}"
+                notification_service.notify_user_from_id(
+                    user_id=dto.userId,
+                    title="🎟️ ¡Compra confirmada!",
+                    body=f"Tu entrada para {match_detail} ha sido confirmada. ¡Prepara tus maletas!",
+                    notif_type="ticket",
+                    reference_id=ticket_id,
+                    reference_type="ticket",
+                )
+            except Exception:
+                pass
+
             return {**TicketResponseDTO(**ticket).model_dump(),
                     "stripe_intent_id": payment_result["intent_id"]}
         except Exception:

@@ -9,7 +9,8 @@ from typing import Optional, List
 from app.infrastructure.logger import app_logger
 
 
-def _log_attempt(db, user_id, channel, recipient, subject, body, success, error_msg=None):
+def _log_attempt(db, user_id, channel, recipient, subject, body, success,
+                 error_msg=None, notif_type=None, reference_id=None, reference_type=None):
     from app.domain.models.notification_history import NotificationHistory
     entry = NotificationHistory(
         userId=user_id,
@@ -19,6 +20,9 @@ def _log_attempt(db, user_id, channel, recipient, subject, body, success, error_
         body=body[:500] if body else None,
         success=success,
         error_msg=error_msg,
+        notifType=notif_type,
+        referenceId=reference_id,
+        referenceType=reference_type,
         date=datetime.now(timezone.utc),
     )
     db.session.add(entry)
@@ -68,7 +72,8 @@ class NotificationService:
             except Exception as e:
                 success, error = False, str(e)
                 app_logger.error({"event": "fcm_error", "user_id": user_id, "details": str(e)})
-            _log_attempt(db, user_id, "push", fcm_token, title, body, success, error)
+            _log_attempt(db, user_id, "push", fcm_token, title, body, success, error,
+                        notif_type=notif_type, reference_id=reference_id, reference_type=reference_type)
             results["push"] = "ok" if success else f"error: {error}"
 
         # ── Email (SendGrid) ─────────────────────────────────────────────────
@@ -81,7 +86,8 @@ class NotificationService:
             except Exception as e:
                 success, error = False, str(e)
                 app_logger.error({"event": "email_error", "user_id": user_id, "details": str(e)})
-            _log_attempt(db, user_id, "email", email, title, body, success, error)
+            _log_attempt(db, user_id, "email", email, title, body, success, error,
+                        notif_type=notif_type, reference_id=reference_id, reference_type=reference_type)
             results["email"] = "ok" if success else f"error: {error}"
 
         # ── Persistir en tabla notification ──────────────────────────────────

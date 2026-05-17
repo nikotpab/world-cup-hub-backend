@@ -112,6 +112,20 @@ def reject_trade(trade_id):
         return jsonify({"error": "ERR_TRADE_CONFLICT", "message": f"Trade is in status: {trade.status}"}), 409
     trade.status = 'REJECTED'
     db.session.commit()
+
+    try:
+        from app.infrastructure.external.notification_service import notification_service
+        notification_service.notify_user_from_id(
+            user_id=trade.proposer_id,
+            title="Intercambio rechazado",
+            body="Tu propuesta de intercambio fue rechazada por el otro usuario.",
+            notif_type="trade_rejected",
+            reference_id=trade.id,
+            reference_type="trade_proposal",
+        )
+    except Exception:
+        pass
+
     return jsonify({"id": trade.id, "status": trade.status}), 200
 
 @album_bp.route('/users/<int:user_id>/trades/pending', methods=['GET'])

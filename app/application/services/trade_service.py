@@ -125,10 +125,30 @@ class TradeService:
             trade.status = 'COMPLETED'
             trade.updated_at = datetime.utcnow()
             saved_trade = self.repository.save(trade)
-            
+
             self.repository.commit()
-            
+
             logger.info({"event": "trade_confirmed", "trade_id": saved_trade.id})
+
+            # Notificar al proponente que su intercambio fue aceptado
+            try:
+                from app.domain.models.sticker import Sticker
+                from app.infrastructure.external.notification_service import notification_service
+                offered = Sticker.query.get(trade.offered_sticker_id)
+                requested = Sticker.query.get(trade.requested_sticker_id)
+                offered_name = offered.name if offered else f"#{trade.offered_sticker_id}"
+                requested_name = requested.name if requested else f"#{trade.requested_sticker_id}"
+                notification_service.notify_user_from_id(
+                    user_id=trade.proposer_id,
+                    title="¡Intercambio aceptado! 🤝",
+                    body=f"Tu propuesta fue aceptada. Cambiaste '{offered_name}' por '{requested_name}'.",
+                    notif_type="trade_accepted",
+                    reference_id=saved_trade.id,
+                    reference_type="trade_proposal",
+                )
+            except Exception:
+                pass
+
             return TradeResponseDTO.model_validate(saved_trade)
             
         except Exception as e:

@@ -20,6 +20,16 @@ class AlbumService:
         if album.lastRewardDate != today:
             album.lastRewardDate = today
             album.packBalance = (album.packBalance or 0) + self.DAILY_FREE_PACKS
+            try:
+                from app.infrastructure.external.notification_service import notification_service
+                notification_service.notify_user_from_id(
+                    user_id=album.idUser,
+                    title="🎁 ¡Nuevos sobres disponibles!",
+                    body=f"Tienes {self.DAILY_FREE_PACKS} sobres de láminas listos para abrir. ¡Entra a la app!",
+                    notif_type="packs",
+                )
+            except Exception:
+                pass
 
     def get_user_album(self, user_id: int) -> Dict[str, Any]:
         album = Album.query.filter_by(idUser=user_id).first()
@@ -164,6 +174,11 @@ class AlbumService:
         if album.packBalance <= 0:
             raise ValueError("No tienes sobres disponibles para abrir.")
 
+        # Progreso antes de abrir para detectar hitos
+        owned_before = db.session.query(func.count(sticker_album.c.id_sticker.distinct())).filter(
+            sticker_album.c.id_album == album.idAlbum
+        ).scalar() or 0
+
         # Límite diario: 3 sobres por día, usando hora UTC del SERVIDOR
         today_utc_start = datetime.now(timezone.utc).replace(
             hour=0, minute=0, second=0, microsecond=0
@@ -227,6 +242,27 @@ class AlbumService:
 
         db.session.commit()
         db.session.expire(album)
+
+        # Detectar y notificar hitos de álbum
+        try:
+            total_stickers = Sticker.query.count() or 600
+            owned_after = db.session.query(func.count(sticker_album.c.id_sticker.distinct())).filter(
+                sticker_album.c.id_album == album.idAlbum
+            ).scalar() or 0
+            pct_before = int(owned_before / total_stickers * 100) if total_stickers else 0
+            pct_after = int(owned_after / total_stickers * 100) if total_stickers else 0
+            for milestone in [25, 50, 75, 100]:
+                if pct_before < milestone <= pct_after:
+                    from app.infrastructure.external.notification_service import notification_service
+                    notification_service.notify_user_from_id(
+                        user_id=user_id,
+                        title="🏆 ¡Hito alcanzado!",
+                        body=f"¡Felicidades! Has completado el {milestone}% de tu álbum.",
+                        notif_type="album_milestone",
+                    )
+                    break
+        except Exception:
+            pass
 
         return {
             "success": True,
