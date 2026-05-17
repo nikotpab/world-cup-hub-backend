@@ -134,7 +134,7 @@ _EQUIPOS = {
     "ARGENTINA": {
         "items": [
             {"numero": 22, "nombre": "JULIAN ALVAREZ",    "tipo": "FF"},
-            {"numero": 23, "nombre": "TEAM CREST"},
+            {"numero": 23, "nombre": _TEAM_CREST},
             {"numero": 24, "nombre": "LIONEL MESSI",      "tipo": "IC"},
             {"numero": 25, "nombre": "EMILIANO MARTÍNEZ"},
             {"numero": 26, "nombre": "NAHUEL MOLINA"},
@@ -150,7 +150,7 @@ _EQUIPOS = {
     "COLOMBIA": {
         "items": [
             {"numero": 106, "nombre": "LUIS DÍAZ",       "tipo": "FF"},
-            {"numero": 107, "nombre": "TEAM CREST"},
+            {"numero": 107, "nombre": _TEAM_CREST},
             {"numero": 108, "nombre": "JAMES RODRIGUEZ", "tipo": "IC"},
             {"numero": 109, "nombre": "CAMILO VARGAS"},
             {"numero": 110, "nombre": "DAVINSON SANCHEZ"},
@@ -164,7 +164,7 @@ _EQUIPOS = {
     "SPAIN": {
         "items": [
             {"numero": 442, "nombre": "LAMINE YAMAL",    "tipo": "FF"},
-            {"numero": 443, "nombre": "TEAM CREST"},
+            {"numero": 443, "nombre": _TEAM_CREST},
             {"numero": 444, "nombre": "RODRI"},
             {"numero": 445, "nombre": "UNAI SIMON"},
             {"numero": 446, "nombre": "ROBIN LE NORMAND"},

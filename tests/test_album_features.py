@@ -188,7 +188,7 @@ def test_trade_limit(test_user, other_user, trade_service, setup_stickers):
     from app.domain.models.album import sticker_album
     
     # Mock 5 successful trades today
-    for i in range(5):
+    for _ in range(5):
         # Reset stickers for each iteration
         db.session.execute(sticker_album.delete().where(sticker_album.c.id_album.in_([album_test.idAlbum, album_other.idAlbum])))
         db.session.execute(sticker_album.insert().values(id_album=album_test.idAlbum, id_sticker=s1.idSticker))

@@ -35,7 +35,7 @@ class TestAuthenticationService:
         mock_conn.commit.assert_called_once()
 
     def test_login_success(self, mock_db_cursor):
-        mock_cur, mock_conn = mock_db_cursor
+        mock_cur, _ = mock_db_cursor
         setup_hashed_pw = ph.hash("SecurePass123!")
         
         mock_cur.fetchone.side_effect = [
