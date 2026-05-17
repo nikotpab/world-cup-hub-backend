@@ -1,5 +1,5 @@
 import smtplib
-import random
+import secrets
 import string
 import jwt
 import os
@@ -23,7 +23,7 @@ class AuthService:
         self.user_repository = user_repository
 
     def _generate_verification_code(self) -> str:
-        return ''.join(random.choices(string.digits, k=6))
+        return f"{secrets.randbelow(1_000_000):06d}"
 
     def _send_verification_email(self, email: str, code: str):
         smtp_server = os.environ.get('SMTP_SERVER')

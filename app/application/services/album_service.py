@@ -1,6 +1,9 @@
 from typing import Dict, Any, List
 import random
+import random as _random_module
 from datetime import datetime, date, timezone
+
+_rng = _random_module.SystemRandom()
 from sqlalchemy import func
 from app.infrastructure.database import db
 from app.domain.models.album import Album, sticker_album
@@ -196,7 +199,7 @@ class AlbumService:
             pool = Sticker.query.filter_by(rarity=pool_filter).all()
             if not pool:
                 pool = Sticker.query.all()
-            return random.choice(pool) if pool else None
+            return _rng.choice(pool) if pool else None
 
         obtained_stickers = []
         for slot in range(self._STICKERS_PER_PACK):
@@ -328,10 +331,10 @@ class AlbumService:
 
     def _pick_rarity_for_slot(self, slot: int) -> str:
         if slot == self._STICKERS_PER_PACK - 1:
-            return random.choices(self._EPIC_PLUS, weights=self._W_EPIC, k=1)[0]
+            return _rng.choices(self._EPIC_PLUS, weights=self._W_EPIC, k=1)[0]
         if slot == self._STICKERS_PER_PACK - 2:
-            return random.choices(self._RARE_PLUS, weights=self._W_RARE, k=1)[0]
-        return random.choices(self._FREE, weights=self._W_FREE, k=1)[0]
+            return _rng.choices(self._RARE_PLUS, weights=self._W_RARE, k=1)[0]
+        return _rng.choices(self._FREE, weights=self._W_FREE, k=1)[0]
 
     def _notify_album_milestone(self, user_id: int, album, owned_before: int) -> None:
         try:

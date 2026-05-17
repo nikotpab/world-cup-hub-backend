@@ -1,4 +1,4 @@
-import random
+import secrets
 import logging
 from typing import List
 from app.application.interfaces.community_repository import ICommunityRepository
@@ -15,7 +15,7 @@ class CommunityService:
         dto = CommunityCreateDTO(**data)
         
         # Generar código de invitación aleatorio (5 dígitos)
-        inv_code = str(random.randint(10000, 99999))
+        inv_code = str(secrets.randbelow(90000) + 10000)
         
         community = Community(
             name=dto.name,
