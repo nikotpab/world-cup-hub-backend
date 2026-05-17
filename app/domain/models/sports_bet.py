@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from app.infrastructure.database import db
 
 class SportsBet(db.Model):
@@ -17,7 +17,7 @@ class SportsBet(db.Model):
     potentialWin   = db.Column('potential_win',  db.Integer,     nullable=False)
     status         = db.Column('status',         db.String(20),  nullable=False, default='pending')
     # 'pending' | 'won' | 'lost' | 'cancelled'
-    createdAt      = db.Column('created_at',     db.DateTime,    default=datetime.utcnow)
+    createdAt      = db.Column('created_at',     db.DateTime,    default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     settledAt      = db.Column('settled_at',     db.DateTime,    nullable=True)
 
     user = db.relationship('User', backref='sports_bets')

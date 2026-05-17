@@ -18,7 +18,7 @@ def _start_ttl_worker(app):
                     result = TicketService(SqlAlchemyTicketRepository()).expire_reservations()
                     if result.get("expired", 0) > 0:
                         app_logger.info({"event": "ttl_worker_ran", "expired": result["expired"]})
-            except Exception as e:
+            except Exception:
                 pass  # No romper el hilo por errores transitorios de BD
             time.sleep(60)
 
@@ -26,9 +26,14 @@ def _start_ttl_worker(app):
     t.start()
 
 
+_API_V1 = '/api/v1'
+
+
 def create_app(config_class=DevelopmentConfig):
+    import os
     app = Flask(__name__)
-    CORS(app)
+    allowed_origins = os.environ.get('CORS_ORIGINS', '*')
+    CORS(app, origins=allowed_origins.split(',') if allowed_origins != '*' else '*')
     
     app.config.from_object(config_class)
     
@@ -47,18 +52,18 @@ def create_app(config_class=DevelopmentConfig):
     from app.presentation.api.news_api import news_bp
     from app.presentation.api.feed_api import feed_bp
 
-    app.register_blueprint(user_bp, url_prefix='/api/v1')
-    app.register_blueprint(match_bp, url_prefix='/api/v1')
-    app.register_blueprint(ticket_bp, url_prefix='/api/v1')
-    app.register_blueprint(album_bp, url_prefix='/api/v1')
-    app.register_blueprint(community_bp, url_prefix='/api/v1')
-    app.register_blueprint(bet_bp, url_prefix='/api/v1')
-    app.register_blueprint(admin_bp, url_prefix='/api/v1')
-    app.register_blueprint(auth_bp, url_prefix='/api/v1')
-    app.register_blueprint(sports_bet_bp, url_prefix='/api/v1')
-    app.register_blueprint(proxy_bp, url_prefix='/api/v1')
-    app.register_blueprint(news_bp, url_prefix='/api/v1')
-    app.register_blueprint(feed_bp, url_prefix='/api/v1')
+    app.register_blueprint(user_bp, url_prefix=_API_V1)
+    app.register_blueprint(match_bp, url_prefix=_API_V1)
+    app.register_blueprint(ticket_bp, url_prefix=_API_V1)
+    app.register_blueprint(album_bp, url_prefix=_API_V1)
+    app.register_blueprint(community_bp, url_prefix=_API_V1)
+    app.register_blueprint(bet_bp, url_prefix=_API_V1)
+    app.register_blueprint(admin_bp, url_prefix=_API_V1)
+    app.register_blueprint(auth_bp, url_prefix=_API_V1)
+    app.register_blueprint(sports_bet_bp, url_prefix=_API_V1)
+    app.register_blueprint(proxy_bp, url_prefix=_API_V1)
+    app.register_blueprint(news_bp, url_prefix=_API_V1)
+    app.register_blueprint(feed_bp, url_prefix=_API_V1)
     
     from sqlalchemy.exc import SQLAlchemyError
     

@@ -46,16 +46,6 @@ def login():
     except ValueError as e:
         return jsonify({"error": "ERR_UNAUTHORIZED", "message": str(e)}), 401
 
-@auth_bp.route('/auth/login/mfa', methods=['POST'])
-def login_mfa():
-    try:
-        data = request.get_json()
-        result = auth_service.verify_mfa(data)
-        return jsonify(result), 200
-    except ValueError as e:
-        return jsonify({"error": "ERR_UNAUTHORIZED", "message": str(e)}), 401
-
-
 @auth_bp.route('/auth/logout', methods=['POST'])
 def logout():
     """

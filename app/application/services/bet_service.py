@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 import logging
 from sqlalchemy.orm.exc import StaleDataError
 from app.application.interfaces.bet_repository import IBetRepository
@@ -21,7 +21,7 @@ class BetService:
         if not match:
             raise ValueError("Partido no encontrado")
             
-        if datetime.utcnow() > (match.scheduledAt - timedelta(minutes=15)):
+        if datetime.now(timezone.utc).replace(tzinfo=None) > (match.scheduledAt - timedelta(minutes=15)):
             raise ValueError("El tiempo para realizar pronósticos ha expirado para este partido")
 
         try:
@@ -45,7 +45,6 @@ class BetService:
                 Bet.createdAt >= today_start
             ).count()
             
-            reward_message = ""
             if daily_bets_count == 0:
                 album = Album.query.filter_by(userId=dto.userId).first()
                 if not album:
@@ -55,7 +54,6 @@ class BetService:
                 if album.packBalance is None: album.packBalance = 0
                 
                 album.packBalance += 1
-                reward_message = " ¡Has ganado 1 sobre por tu primer pronóstico del día!"
             
             self.repository.commit()
             
@@ -85,7 +83,7 @@ class BetService:
             
             # Regla de Cierre: Verificar tiempo antes de actualizar
             match = self.repository.get_match_by_id(bet.match_id)
-            if datetime.utcnow() > (match.scheduledAt - timedelta(minutes=15)):
+            if datetime.now(timezone.utc).replace(tzinfo=None) > (match.scheduledAt - timedelta(minutes=15)):
                 raise ValueError("Ya no es posible modificar este pronóstico")
                 
             bet.home_goals = dto.homeGoals

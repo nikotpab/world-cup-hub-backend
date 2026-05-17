@@ -9,6 +9,35 @@ from pydantic import ValidationError
 
 match_bp = Blueprint('match_bp', __name__)
 
+
+def _calculate_bet_points(bet, match) -> int:
+    if bet.home_goals == match.home_goals and bet.away_goals == match.away_goals:
+        return 3
+    actual = (match.home_goals > match.away_goals) - (match.home_goals < match.away_goals)
+    pred = (bet.home_goals > bet.away_goals) - (bet.home_goals < bet.away_goals)
+    return 1 if actual == pred else 0
+
+
+def _notify_bet_result(entry: dict, match, home: str, away: str) -> None:
+    if entry["points"] > 0:
+        msg = (
+            f"¡Acertaste {entry['points']} punto(s) en {home} vs {away} "
+            f"({match.home_goals}-{match.away_goals})!"
+        )
+    else:
+        msg = f"No acertaste el resultado de {home} vs {away} ({match.home_goals}-{match.away_goals})."
+    try:
+        notification_service.notify_user_from_id(
+            user_id=entry["user_id"],
+            title="Resultado del partido",
+            body=msg,
+            notif_type="match_result",
+            reference_id=match.matchId,
+            reference_type="match",
+        )
+    except Exception:
+        pass
+
 match_repo = SqlAlchemyMatchRepository()
 match_service = MatchService(match_repo)
 
@@ -70,15 +99,10 @@ def finalize_match(match_id):
     match.status = 'FINISHED'
 
     bets = Bet.query.filter_by(match_id=match_id).all()
-    scored = []
-    for bet in bets:
-        if bet.home_goals == match.home_goals and bet.away_goals == match.away_goals:
-            pts = 3
-        else:
-            actual = (match.home_goals > match.away_goals) - (match.home_goals < match.away_goals)
-            pred   = (bet.home_goals  > bet.away_goals)   - (bet.home_goals  < bet.away_goals)
-            pts = 1 if actual == pred else 0
-        scored.append({"user_id": bet.user_id, "bet_id": bet.bet_id, "points": pts})
+    scored = [
+        {"user_id": bet.user_id, "bet_id": bet.bet_id, "points": _calculate_bet_points(bet, match)}
+        for bet in bets
+    ]
 
     try:
         db.session.commit()
@@ -89,24 +113,7 @@ def finalize_match(match_id):
     home = match.home_team_name or "Local"
     away = match.away_team_name or "Visitante"
     for entry in scored:
-        if entry["points"] > 0:
-            msg = (
-                f"¡Acertaste {entry['points']} punto(s) en {home} vs {away} "
-                f"({match.home_goals}-{match.away_goals})!"
-            )
-        else:
-            msg = f"No acertaste el resultado de {home} vs {away} ({match.home_goals}-{match.away_goals})."
-        try:
-            notification_service.notify_user_from_id(
-                user_id=entry["user_id"],
-                title="Resultado del partido",
-                body=msg,
-                notif_type="match_result",
-                reference_id=match_id,
-                reference_type="match",
-            )
-        except Exception:
-            pass
+        _notify_bet_result(entry, match, home, away)
 
     return jsonify({
         "match_id": match_id,

@@ -9,7 +9,9 @@ class Post(db.Model):
     content    = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
+    _CASCADE = 'all, delete-orphan'
+
     user    = db.relationship('User', backref='posts')
-    images  = db.relationship('PostImage',   back_populates='post', cascade='all, delete-orphan', order_by='PostImage.position')
-    likes   = db.relationship('PostLike',    back_populates='post', cascade='all, delete-orphan')
-    comments= db.relationship('PostComment', back_populates='post', cascade='all, delete-orphan')
+    images  = db.relationship('PostImage',   back_populates='post', cascade=_CASCADE, order_by='PostImage.position')
+    likes   = db.relationship('PostLike',    back_populates='post', cascade=_CASCADE)
+    comments= db.relationship('PostComment', back_populates='post', cascade=_CASCADE)

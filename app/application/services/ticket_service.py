@@ -27,10 +27,12 @@ class TicketService:
         saved = self.repository.save({"price": dto.price, "matchId": dto.matchId, "status": "Disponible"})
         return TicketResponseDTO(**saved)
 
+    _ERR_TICKET_NOT_FOUND = "Ticket no encontrado"
+
     def get_ticket(self, ticket_id: int) -> TicketResponseDTO:
         ticket = self.repository.get_by_id(ticket_id)
         if not ticket:
-            raise ValueError("Ticket no encontrado")
+            raise ValueError(self._ERR_TICKET_NOT_FOUND)
         return TicketResponseDTO(**ticket)
 
     def get_user_tickets(self, user_id: int) -> List[TicketResponseDTO]:
@@ -39,7 +41,7 @@ class TicketService:
 
     def get_ticket_history(self, ticket_id: int) -> List[TicketHistoryItemDTO]:
         if not self.repository.get_by_id(ticket_id):
-            raise ValueError("Ticket no encontrado")
+            raise ValueError(self._ERR_TICKET_NOT_FOUND)
         rows = self.repository.get_history(ticket_id)
         return [TicketHistoryItemDTO(**r) for r in rows]
 
@@ -58,14 +60,15 @@ class TicketService:
             raise ValueError("No hay entradas disponibles para este partido")
 
         corr_id = str(uuid.uuid4())
-        expiration = datetime.utcnow() + timedelta(minutes=RESERVATION_TTL_MINUTES)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        expiration = now + timedelta(minutes=RESERVATION_TTL_MINUTES)
 
         try:
             self.repository.update_ticket(
                 ticket,
                 status='Reservada',
                 userId=dto.userId,
-                reservedAt=datetime.utcnow(),
+                reservedAt=now,
                 expirationDate=expiration,
                 correlationId=corr_id,
             )
@@ -114,7 +117,7 @@ class TicketService:
                 "stripeIntentId": payment_result["intent_id"],
                 "idUser":         dto.userId,
             })
-            self.repository.update_ticket(ticket_orm, status='Pagada', paidAt=datetime.utcnow())
+            self.repository.update_ticket(ticket_orm, status='Pagada', paidAt=datetime.now(timezone.utc).replace(tzinfo=None))
             self.repository.save_history(ticket_id, 'Pagada',
                                          f'Pago Stripe confirmado — intent: {payment_result["intent_id"]}')
             self.repository.commit()
@@ -158,7 +161,7 @@ class TicketService:
 
         ticket_data = self.repository.get_by_id(ticket_id)
         if not ticket_data:
-            raise ValueError("Ticket no encontrado")
+            raise ValueError(self._ERR_TICKET_NOT_FOUND)
         if ticket_data["status"] != 'Pagada':
             raise ValueError(f"Solo se pueden transferir entradas Pagadas (actual: {ticket_data['status']})")
         if ticket_data["userId"] != dto.fromUserId:
@@ -198,7 +201,7 @@ class TicketService:
         dto = TicketRefundDTO(**data)
         ticket_data = self.repository.get_by_id(ticket_id)
         if not ticket_data:
-            raise ValueError("Ticket no encontrado")
+            raise ValueError(self._ERR_TICKET_NOT_FOUND)
         if ticket_data["status"] != 'Pagada':
             raise ValueError(f"Solo se pueden reembolsar entradas Pagadas (actual: {ticket_data['status']})")
         if ticket_data["userId"] != dto.userId:

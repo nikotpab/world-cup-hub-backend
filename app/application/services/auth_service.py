@@ -15,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any
 from app.application.interfaces.user_repository import IUserRepository
 from passlib.hash import argon2
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import current_app
 
 class AuthService:
@@ -91,7 +91,7 @@ class AuthService:
             "roleId": 2  # Asumiendo rol de aficionado por defecto
         }
 
-        saved_user = self.user_repository.save(user_data)
+        self.user_repository.save(user_data)
         self._send_verification_email(email, verification_code)
 
         return {
@@ -149,14 +149,15 @@ class AuthService:
             raise ValueError("Email y contraseña requeridos")
 
         user = self.user_repository.get_by_email(email)
+        _ERR_INVALID_CREDENTIALS = "Credenciales inválidas"
         if not user:
-            raise ValueError("Credenciales inválidas")
+            raise ValueError(_ERR_INVALID_CREDENTIALS)
 
         try:
             if not argon2.verify(password, user.get("password")):
-                raise ValueError("Credenciales inválidas")
+                raise ValueError(_ERR_INVALID_CREDENTIALS)
         except Exception:
-            raise ValueError("Credenciales inválidas")
+            raise ValueError(_ERR_INVALID_CREDENTIALS)
 
         if not user.get("verified"):
             # Usamos una excepción marcada para que el API devuelva ERR_UNVERIFIED
@@ -165,40 +166,13 @@ class AuthService:
         if user.get("accountStatus") != 'activo':
             raise ValueError("Tu cuenta está suspendida.")
 
-        # MFA: Generar código, guardarlo y enviarlo por correo
-        mfa_code = self._generate_verification_code()
-        user["verificationCode"] = mfa_code
-        self.user_repository.save(user)
-        self._send_verification_email(email, mfa_code)
-
-        return {
-            "requires_mfa": True,
-            "email": email,
-            "message": "Código de autenticación (MFA) enviado a tu correo."
-        }
-
-    def verify_mfa(self, data: dict) -> Dict[str, Any]:
-        email = data.get("email")
-        code = data.get("code")
-
-        if not email or not code:
-            raise ValueError("Email y código requeridos")
-
-        user = self.user_repository.get_by_email(email)
-        if not user or user.get("verificationCode") != code:
-            raise ValueError("Código inválido o expirado")
-
-        # Limpiar el código después de verificar el MFA
-        user["verificationCode"] = None
-        self.user_repository.save(user)
-
         # Generar JWT Token
         secret_key = current_app.config.get('JWT_SECRET_KEY') or current_app.config.get('SECRET_KEY') or 'secret'
         payload = {
             "userId": user.get("userId"),
             "email": user.get("email"),
             "roleId": user.get("roleId"),
-            "exp": datetime.utcnow() + timedelta(hours=24),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=24),
         }
         token = jwt.encode(payload, secret_key, algorithm="HS256")
 

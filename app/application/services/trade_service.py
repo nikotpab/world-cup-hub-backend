@@ -4,7 +4,7 @@ from app.domain.models.trade_proposal import TradeProposal
 from app.domain.models.pack import Pack, pack_sticker
 from app.domain.models.album import Album, sticker_album
 from app.infrastructure.database import db
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -123,7 +123,7 @@ class TradeService:
             )
 
             trade.status = 'COMPLETED'
-            trade.updated_at = datetime.utcnow()
+            trade.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
             saved_trade = self.repository.save(trade)
 
             self.repository.commit()
@@ -153,5 +153,5 @@ class TradeService:
             
         except Exception as e:
             self.repository.rollback()
-            logger.error({"event": "trade_confirmation_failed", "trade_id": trade_id, "error": str(e)})
+            logger.exception({"event": "trade_confirmation_failed", "trade_id": trade_id, "error": str(e)})
             raise ValueError(f"Error confirmando intercambio: {str(e)}")

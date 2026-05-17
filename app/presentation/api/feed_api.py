@@ -3,6 +3,8 @@ from app.application.services.feed_service import feed_service
 
 feed_bp = Blueprint('feed_bp', __name__)
 
+_ERR_USER_ID_REQUIRED = "userId requerido"
+
 
 def _viewer() -> int:
     """Extrae user_id del header o query param. Devuelve 0 si anónimo."""
@@ -32,7 +34,7 @@ def create_post():
     images   = data.get('images', [])
     group_id = data.get('groupId')
     if not user_id:
-        return jsonify({"error": "userId requerido"}), 400
+        return jsonify({"error": _ERR_USER_ID_REQUIRED}), 400
     try:
         post = feed_service.create_post(int(user_id), content, images,
                                         group_id=int(group_id) if group_id else None)
@@ -47,7 +49,7 @@ def edit_post(post_id):
     user_id = data.get('userId')
     content = data.get('content', '')
     if not user_id:
-        return jsonify({"error": "userId requerido"}), 400
+        return jsonify({"error": _ERR_USER_ID_REQUIRED}), 400
     try:
         post = feed_service.edit_post(post_id, int(user_id), content)
         return jsonify(post), 200
@@ -60,7 +62,7 @@ def delete_post(post_id):
     data    = request.get_json() or {}
     user_id = data.get('userId')
     if not user_id:
-        return jsonify({"error": "userId requerido"}), 400
+        return jsonify({"error": _ERR_USER_ID_REQUIRED}), 400
     try:
         feed_service.delete_post(post_id, int(user_id))
         return jsonify({"ok": True}), 200
@@ -73,7 +75,7 @@ def toggle_like(post_id):
     data    = request.get_json() or {}
     user_id = data.get('userId')
     if not user_id:
-        return jsonify({"error": "userId requerido"}), 400
+        return jsonify({"error": _ERR_USER_ID_REQUIRED}), 400
     try:
         result = feed_service.toggle_like(post_id, int(user_id))
         return jsonify(result), 200
@@ -97,7 +99,7 @@ def add_comment(post_id):
     content   = data.get('content', '')
     parent_id = data.get('parentId')
     if not user_id:
-        return jsonify({"error": "userId requerido"}), 400
+        return jsonify({"error": _ERR_USER_ID_REQUIRED}), 400
     try:
         comment = feed_service.add_comment(post_id, int(user_id), content,
                                            int(parent_id) if parent_id else None)
@@ -111,7 +113,7 @@ def delete_comment(comment_id):
     data    = request.get_json() or {}
     user_id = data.get('userId')
     if not user_id:
-        return jsonify({"error": "userId requerido"}), 400
+        return jsonify({"error": _ERR_USER_ID_REQUIRED}), 400
     try:
         feed_service.delete_comment(comment_id, int(user_id))
         return jsonify({"ok": True}), 200
@@ -124,7 +126,7 @@ def toggle_comment_like(comment_id):
     data    = request.get_json() or {}
     user_id = data.get('userId')
     if not user_id:
-        return jsonify({"error": "userId requerido"}), 400
+        return jsonify({"error": _ERR_USER_ID_REQUIRED}), 400
     try:
         result = feed_service.toggle_comment_like(comment_id, int(user_id))
         return jsonify(result), 200

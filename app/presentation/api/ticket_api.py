@@ -169,59 +169,58 @@ def get_ticketing_matches():
 # Seed de partidos + entradas (admin)
 # -----------------------------------------------------------------------
 
+def _parse_match_datetime(date_str: str):
+    from datetime import datetime as _dt
+    try:
+        return _dt.fromisoformat(date_str.replace('Z', '+00:00')).replace(tzinfo=None) if date_str else datetime.now(timezone.utc).replace(tzinfo=None)
+    except Exception:
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _ensure_match(Match, home, away, match_dt, price):
+    existing = Match.query.filter_by(home_team_name=home, away_team_name=away).first()
+    if existing:
+        return existing, 0
+    match_obj = Match(
+        scheduledAt=match_dt,
+        home_team_name=home,
+        away_team_name=away,
+        ticket_price=price,
+        status='SCHEDULED',
+    )
+    db.session.add(match_obj)
+    db.session.flush()
+    return match_obj, 1
+
+
 @ticket_bp.route('/admin/tickets/seed', methods=['POST'])
 @require_role([1])
 def seed_tickets():
     """
     Crea partidos con datos reales del API de football-data.org
     y genera N entradas Disponibles por partido.
-    Query param: tickets_per_match (default 30)
+    Body: { "tickets_per_match": int (default 30) }
     """
     from app.domain.models.match import Match
     from app.domain.models.ticket import Ticket, VALID_STATUSES
     from app.infrastructure.external.football_data_service import FootballDataService
-    from datetime import timezone as tz
 
-    n = int(request.args.get('tickets_per_match', 30))
-    svc = FootballDataService()
-    raw = svc.get_upcoming_matches()
-    matches_data = raw.get('matches', [])[:15]
+    body = request.get_json() or {}
+    n = int(body.get('tickets_per_match', 30))
+    matches_data = FootballDataService().get_upcoming_matches().get('matches', [])[:15]
 
     created_matches = 0
     created_tickets = 0
-
     price_tiers = [120.0, 150.0, 200.0, 280.0, 350.0]
 
     for i, m in enumerate(matches_data):
         home = (m.get('homeTeam') or {}).get('shortName') or (m.get('homeTeam') or {}).get('name', 'Local')
         away = (m.get('awayTeam') or {}).get('shortName') or (m.get('awayTeam') or {}).get('name', 'Visitante')
-        date_str = m.get('utcDate')
-        try:
-            from datetime import datetime as _dt
-            match_dt = _dt.fromisoformat(date_str.replace('Z', '+00:00')).replace(tzinfo=None) if date_str else datetime.utcnow()
-        except Exception:
-            match_dt = datetime.utcnow()
-
         price = price_tiers[i % len(price_tiers)]
+        match_obj, new_match = _ensure_match(Match, home, away, _parse_match_datetime(m.get('utcDate')), price)
+        created_matches += new_match
 
-        existing = Match.query.filter_by(home_team_name=home, away_team_name=away).first()
-        if not existing:
-            match_obj = Match(
-                scheduledAt=match_dt,
-                home_team_name=home,
-                away_team_name=away,
-                ticket_price=price,
-                status='SCHEDULED',
-            )
-            db.session.add(match_obj)
-            db.session.flush()
-            created_matches += 1
-        else:
-            match_obj = existing
-
-        # Solo crear tickets si no hay suficientes disponibles
-        current_avail = Ticket.query.filter_by(matchId=match_obj.matchId, status='Disponible').count()
-        to_create = n - current_avail
+        to_create = n - Ticket.query.filter_by(matchId=match_obj.matchId, status='Disponible').count()
         for _ in range(max(0, to_create)):
             db.session.add(Ticket(matchId=match_obj.matchId, status='Disponible', price=price))
             created_tickets += 1
