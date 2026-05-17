@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 from urllib.parse import urlparse
 from flask import Blueprint, request, Response, jsonify
@@ -14,6 +15,8 @@ _ALLOWED_HOSTS = frozenset(
     if h.strip()
 )
 
+_SAFE_PATH_RE = re.compile(r'^/[a-zA-Z0-9/_\-\.%]*$')
+
 
 @proxy_bp.route('/proxy/image', methods=['GET'])
 def proxy_image():
@@ -26,10 +29,16 @@ def proxy_image():
     if parsed.scheme not in ('http', 'https') or parsed.hostname not in _ALLOWED_HOSTS:
         return jsonify({"error": "URL not allowed"}), 400
 
-    try:
-        resp = requests.get(url, timeout=10)
-        resp.raise_for_status()
+    if not _SAFE_PATH_RE.match(parsed.path or '/'):
+        return jsonify({"error": "URL not allowed"}), 400
 
+    safe_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+    if parsed.query:
+        safe_url += f"?{parsed.query}"
+
+    try:
+        resp = requests.get(safe_url, timeout=10)
+        resp.raise_for_status()
         return Response(
             resp.content,
             mimetype=resp.headers.get('Content-Type', 'image/svg+xml'),
