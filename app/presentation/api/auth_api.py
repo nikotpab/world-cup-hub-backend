@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from app.application.services.auth_service import AuthService, _UnverifiedError
 from app.infrastructure.repositories.user_repository import SqlAlchemyUserRepository
 
@@ -27,7 +27,6 @@ def verify():
 
 @auth_bp.route('/auth/resend', methods=['POST'])
 def resend_verification():
-    """Reenvía el código de verificación al correo del usuario. Body: {email}"""
     try:
         data = request.get_json()
         result = auth_service.resend_verification(data)
@@ -48,16 +47,18 @@ def login():
 
 @auth_bp.route('/auth/logout', methods=['POST'])
 def logout():
-    """
-    Blacklists the JWT in Redis so it can't be reused.
-    Body is optional; the token is read from the Authorization header.
-    """
+    """Revokes the JWT by blacklisting its jti in Redis."""
     auth_header = request.headers.get('Authorization', '')
     token = auth_header.removeprefix('Bearer ').strip()
     if token:
         try:
+            import jwt as _jwt
             from app.infrastructure.cache.redis_client import redis_client
-            redis_client.set(f"blacklist:{token}", "1", ex=86400)  # 24 h TTL
+            secret_key = current_app.config.get('JWT_SECRET_KEY') or current_app.config.get('SECRET_KEY')
+            payload = _jwt.decode(token, secret_key, algorithms=['HS256'], options={"verify_exp": False})
+            jti = payload.get('jti')
+            if jti:
+                redis_client.set(f"blacklist_{jti}", "1", ex=86400)
         except Exception:
             pass
     return jsonify({"ok": True}), 200

@@ -1,31 +1,48 @@
 import os
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+import ssl
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from app.infrastructure.logger import app_logger
 
-class SendGridEmailService:
+
+class SmtpEmailService:
     def __init__(self):
-        self.api_key = os.environ.get('SENDGRID_API_KEY')
-        self.from_email = os.environ.get('SENDGRID_FROM_EMAIL', 'no-reply@mundial2026hub.com')
-        if not self.api_key:
-            app_logger.warning({"event": "sendgrid_init_warning", "message": "SENDGRID_API_KEY no configurado. Simulando envíos de correo."})
+        self.smtp_server   = os.environ.get('SMTP_SERVER', 'smtp.hostinger.com')
+        self.smtp_port     = int(os.environ.get('SMTP_PORT', '465'))
+        self.smtp_email    = os.environ.get('SMTP_EMAIL')
+        self.smtp_password = os.environ.get('SMTP_PASSWORD')
+
+        if not self.smtp_email or not self.smtp_password:
+            app_logger.warning({
+                "event": "smtp_init_warning",
+                "message": "SMTP credentials not configured. Simulating email sends.",
+            })
 
     def send_email(self, to_email: str, subject: str, html_content: str):
-        if not self.api_key:
+        if not self.smtp_email or not self.smtp_password:
             app_logger.info({"event": "email_simulated", "to": to_email, "subject": subject})
-            return {"status": "simulated", "message": "Email simulated (SendGrid not configured)"}
+            return {"status": "simulated", "message": "Email simulated (SMTP not configured)"}
 
-        message = Mail(
-            from_email=self.from_email,
-            to_emails=to_email,
-            subject=subject,
-            html_content=html_content)
-        
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = self.smtp_email
+        msg["To"]      = to_email
+        msg.attach(MIMEText(html_content, "html"))
+
         try:
-            sg = SendGridAPIClient(self.api_key)
-            response = sg.send(message)
-            app_logger.info({"event": "email_sent", "to": to_email, "status_code": response.status_code})
-            return {"status": "success", "status_code": response.status_code}
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context) as server:
+                server.login(self.smtp_email, self.smtp_password)
+                server.sendmail(self.smtp_email, to_email, msg.as_string())
+
+            app_logger.info({"event": "email_sent", "to": to_email, "subject": subject})
+            return {"status": "success"}
+
         except Exception as e:
             app_logger.error({"event": "email_send_error", "details": str(e)})
-            raise ValueError(f"Error al enviar email transaccional: {str(e)}")
+            raise ValueError(f"Error al enviar email via SMTP: {str(e)}")
+
+
+# Alias for backwards compatibility
+SendGridEmailService = SmtpEmailService

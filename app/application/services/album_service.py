@@ -1,9 +1,10 @@
 from typing import Dict, Any, List
 import random
 import random as _random_module
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 
 _rng = _random_module.SystemRandom()
+_UTC_MINUS_5 = timezone(timedelta(hours=-5))
 from sqlalchemy import func
 from app.infrastructure.database import db
 from app.domain.models.album import Album, sticker_album
@@ -15,8 +16,8 @@ class AlbumService:
     DAILY_FREE_PACKS = 3  # packs regalados cada día automáticamente
 
     def _auto_claim_daily(self, album: "Album") -> None:
-        """Reclama los sobres diarios automáticamente si no se han reclamado hoy."""
-        today = date.today()
+        """Reclama los sobres diarios automáticamente si no se han reclamado hoy (UTC-5)."""
+        today = datetime.now(_UTC_MINUS_5).date()
         if album.lastRewardDate != today:
             album.lastRewardDate = today
             album.packBalance = (album.packBalance or 0) + self.DAILY_FREE_PACKS

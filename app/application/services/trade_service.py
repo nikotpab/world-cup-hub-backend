@@ -38,29 +38,43 @@ class TradeService:
         if daily_trades_count >= 5:
             raise ValueError("Has alcanzado el límite diario de intercambios (5).")
 
+        # Verify proposer owns all offered stickers
+        proposer_album = Album.query.filter_by(idUser=dto.proposer_id).first()
+        if not proposer_album:
+            raise ValueError("El proponente no tiene un álbum.")
+        for sid in dto.offered_sticker_ids:
+            assoc = db.session.query(sticker_album).filter_by(
+                id_album=proposer_album.idAlbum, id_sticker=sid
+            ).first()
+            if not assoc:
+                raise ValueError(f"No tienes la lámina #{sid} en tu álbum.")
+
         try:
             trade = TradeProposal(
                 proposer_id=dto.proposer_id,
                 receiver_id=receiver.idUser,
-                offered_sticker_id=dto.offered_sticker_id,
+                offered_sticker_ids=dto.offered_sticker_ids,
                 requested_sticker_id=dto.requested_sticker_id,
                 status='PENDING_CONFIRMATION'
             )
             saved_trade = self.repository.save(trade)
             self.repository.commit()
-            
+
             logger.info({"event": "trade_proposed", "trade_id": saved_trade.id})
-            
-            # Send notification
+
+            offered_count = len(dto.offered_sticker_ids)
             notification_service.notify_user_from_id(
                 user_id=receiver.idUser,
                 title="Nueva solicitud de intercambio",
-                body=f"Un usuario quiere intercambiar su lámina #{dto.offered_sticker_id} por tu lámina #{dto.requested_sticker_id}. Ingresa a la app para aceptar o rechazar.",
+                body=(
+                    f"Alguien te ofrece {offered_count} lámina{'s' if offered_count > 1 else ''} "
+                    f"a cambio de tu lámina #{dto.requested_sticker_id}. ¡Entra a aceptar o rechazar!"
+                ),
                 notif_type="trade",
                 reference_id=saved_trade.id,
                 reference_type="trade_proposal"
             )
-            
+
             return TradeResponseDTO.model_validate(saved_trade)
             
         except Exception as e:
@@ -94,30 +108,33 @@ class TradeService:
             if not proposer_album or not receiver_album:
                 raise ValueError("Álbum de proponente o receptor no encontrado.")
 
-            # Find offered sticker association in proposer's album
-            offered_assoc = db.session.query(sticker_album).filter_by(
-                id_album=proposer_album.idAlbum, 
-                id_sticker=trade.offered_sticker_id
-            ).first()
-            
-            if not offered_assoc:
-                raise ValueError("El proponente ya no tiene la lámina ofrecida.")
+            # Verify and transfer all offered stickers: Proposer -> Receiver
+            offered_ids = trade.offered_sticker_ids or []
+            if not offered_ids:
+                # Fallback: read legacy offered_sticker_id column
+                row = db.session.execute(
+                    db.text("SELECT offered_sticker_id FROM trade_proposal WHERE id = :id"),
+                    {"id": trade.id}
+                ).fetchone()
+                if row and row[0]:
+                    offered_ids = [row[0]]
+            for sid in offered_ids:
+                assoc = db.session.query(sticker_album).filter_by(
+                    id_album=proposer_album.idAlbum, id_sticker=sid
+                ).first()
+                if not assoc:
+                    raise ValueError(f"El proponente ya no tiene la lámina ofrecida #{sid}.")
+                db.session.execute(
+                    sticker_album.update().where(sticker_album.c.id == assoc.id).values(id_album=receiver_album.idAlbum)
+                )
 
-            # Find requested sticker association in receiver's album
+            # Find and transfer requested sticker: Receiver -> Proposer
             requested_assoc = db.session.query(sticker_album).filter_by(
-                id_album=receiver_album.idAlbum, 
+                id_album=receiver_album.idAlbum,
                 id_sticker=trade.requested_sticker_id
             ).first()
-            
             if not requested_assoc:
                 raise ValueError("El destinatario ya no tiene la lámina solicitada.")
-
-            # ATOMIC SWAP
-            # Move offered: Proposer -> Receiver
-            db.session.execute(
-                sticker_album.update().where(sticker_album.c.id == offered_assoc.id).values(id_album=receiver_album.idAlbum)
-            )
-            # Move requested: Receiver -> Proposer
             db.session.execute(
                 sticker_album.update().where(sticker_album.c.id == requested_assoc.id).values(id_album=proposer_album.idAlbum)
             )
@@ -134,14 +151,14 @@ class TradeService:
             try:
                 from app.domain.models.sticker import Sticker
                 from app.infrastructure.external.notification_service import notification_service
-                offered = Sticker.query.get(trade.offered_sticker_id)
+                offered_ids = trade.offered_sticker_ids or []
                 requested = Sticker.query.get(trade.requested_sticker_id)
-                offered_name = offered.name if offered else f"#{trade.offered_sticker_id}"
                 requested_name = requested.name if requested else f"#{trade.requested_sticker_id}"
+                offered_count = len(offered_ids)
                 notification_service.notify_user_from_id(
                     user_id=trade.proposer_id,
                     title="¡Intercambio aceptado! 🤝",
-                    body=f"Tu propuesta fue aceptada. Cambiaste '{offered_name}' por '{requested_name}'.",
+                    body=f"Tu propuesta fue aceptada. Enviaste {offered_count} lámina{'s' if offered_count > 1 else ''} y recibiste '{requested_name}'.",
                     notif_type="trade_accepted",
                     reference_id=saved_trade.id,
                     reference_type="trade_proposal",

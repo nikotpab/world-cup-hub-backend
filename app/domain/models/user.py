@@ -17,5 +17,6 @@ class User(db.Model):
     accountStatus = db.Column('accountstatus', db.String(20), default='activo')
     fcmToken = db.Column('fcm_token', db.String(300), nullable=True)
     profilePicture = db.Column('profilepicture', db.Text, nullable=True)
-    
+    preferences = db.Column('preferences', db.JSON, nullable=True, default=dict)
+
     role = db.relationship('Role', backref='users')
