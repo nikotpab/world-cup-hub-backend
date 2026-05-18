@@ -60,8 +60,8 @@ class NotificationService:
                     notif_type, reference_id, reference_type) -> str:
         success, error = True, None
         try:
-            from app.infrastructure.external.email_service import SendGridEmailService
-            SendGridEmailService().send_email(email, title, f"<h2>{title}</h2><p>{body}</p>")
+            from app.infrastructure.external.email_service import SmtpEmailService
+            SmtpEmailService().send_email(email, title, f"<h2>{title}</h2><p>{body}</p>")
         except Exception as e:
             success, error = False, str(e)
             app_logger.error({"event": "email_error", "user_id": user_id, "details": str(e)})
@@ -113,11 +113,22 @@ class NotificationService:
 
     def notify_user_from_id(self, user_id: int, title: str, body: str,
                              notif_type: str = "general", **kwargs) -> dict:
-        """Carga email y fcm_token del usuario y envía."""
+        """Carga email y fcm_token del usuario y envía respetando sus preferencias."""
         from app.domain.models.user import User
         user = User.query.get(user_id)
         if not user:
             return {}
+
+        prefs = user.preferences or {}
+        channels = []
+        if prefs.get("notif_push", True):
+            channels.append("push")
+        if prefs.get("notif_email", True) and user.verified:
+            channels.append("email")
+
+        if not channels:
+            return {}
+
         return self.notify(
             user_id=user_id,
             title=title,
@@ -125,6 +136,7 @@ class NotificationService:
             email=user.email if user.verified else None,
             fcm_token=user.fcmToken,
             notif_type=notif_type,
+            channels=channels,
             **kwargs,
         )
 

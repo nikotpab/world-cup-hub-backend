@@ -10,7 +10,7 @@ _ALLOWED_HOSTS = frozenset(
     h.strip()
     for h in os.environ.get(
         'PROXY_ALLOWED_HOSTS',
-        'crests.football-data.org,media.api-sports.io,upload.wikimedia.org,img.mlbstatic.com'
+        'crests.football-data.org,media.api-sports.io,upload.wikimedia.org,img.mlbstatic.com,newsapi.org'
     ).split(',')
     if h.strip()
 )
@@ -20,13 +20,18 @@ _SAFE_PATH_RE = re.compile(r'^/[a-zA-Z0-9/_\-\.%]*$')
 
 @proxy_bp.route('/proxy/image', methods=['GET'])
 def proxy_image():
-    """Proxies an image request to bypass browser CORS restrictions."""
+    """Proxies image requests to bypass browser CORS restrictions.
+    Only hosts listed in PROXY_ALLOWED_HOSTS are permitted.
+    """
     url = request.args.get('url')
     if not url:
         return jsonify({"error": "Missing URL"}), 400
 
     parsed = urlparse(url)
-    if parsed.scheme not in ('http', 'https') or parsed.hostname not in _ALLOWED_HOSTS:
+    if parsed.scheme not in ('http', 'https'):
+        return jsonify({"error": "URL not allowed"}), 400
+
+    if parsed.netloc not in _ALLOWED_HOSTS:
         return jsonify({"error": "URL not allowed"}), 400
 
     if not _SAFE_PATH_RE.match(parsed.path or '/'):

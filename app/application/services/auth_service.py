@@ -1,6 +1,7 @@
 import smtplib
 import secrets
 import string
+import uuid
 import jwt
 import os
 from email.mime.text import MIMEText
@@ -169,6 +170,7 @@ class AuthService:
         # Generar JWT Token
         secret_key = current_app.config.get('JWT_SECRET_KEY') or current_app.config.get('SECRET_KEY') or 'secret'
         payload = {
+            "jti": str(uuid.uuid4()),
             "userId": user.get("userId"),
             "email": user.get("email"),
             "roleId": user.get("roleId"),

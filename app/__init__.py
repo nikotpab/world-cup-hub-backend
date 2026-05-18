@@ -1,7 +1,33 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from app.infrastructure.database import db
-from app.config import DevelopmentConfig
+from app.config import get_config
+
+def _run_startup_migrations(app):
+    """Añade columnas nuevas al esquema si aún no existen."""
+    with app.app_context():
+        try:
+            from app.infrastructure.database import db
+            db.session.execute(db.text(
+                'ALTER TABLE "USER" ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT \'{}\'::jsonb'
+            ))
+            db.session.execute(db.text(
+                "ALTER TABLE trade_proposal ADD COLUMN IF NOT EXISTS offered_sticker_ids JSONB DEFAULT '[]'::jsonb"
+            ))
+            # Migrate existing rows: copy offered_sticker_id → offered_sticker_ids
+            db.session.execute(db.text("""
+                UPDATE trade_proposal
+                SET offered_sticker_ids = jsonb_build_array(offered_sticker_id)
+                WHERE offered_sticker_id IS NOT NULL
+                  AND (offered_sticker_ids IS NULL
+                       OR offered_sticker_ids = '[]'::jsonb
+                       OR jsonb_array_length(offered_sticker_ids) = 0)
+            """))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
 
 def _start_ttl_worker(app):
     """Hilo daemon que libera reservas expiradas cada 60 s."""
@@ -29,13 +55,13 @@ def _start_ttl_worker(app):
 _API_V1 = '/api/v1'
 
 
-def create_app(config_class=DevelopmentConfig):
+def create_app(config_class=None):
     import os
     app = Flask(__name__)
     allowed_origins = os.environ.get('CORS_ORIGINS', '*')
     CORS(app, origins=allowed_origins.split(',') if allowed_origins != '*' else '*')
-    
-    app.config.from_object(config_class)
+
+    app.config.from_object(config_class or get_config())
     
     db.init_app(app)
     
@@ -84,5 +110,8 @@ def create_app(config_class=DevelopmentConfig):
         app_logger.error({"event":"critical_uncaught_error", "details": str(e)})
         return jsonify({"error": "ERR_INTERNAL_SERVER", "message": "Unexpected platform error"}), 500
     
+    _run_startup_migrations(app)
     _start_ttl_worker(app)
+    # Daily pack distribution runs as an AWS Lambda (lambda_daily_packs.py)
+    # triggered by EventBridge at 05:00 UTC (00:00 UTC-5). Not started here.
     return app
