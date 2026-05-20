@@ -9,7 +9,10 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: world-cup-backend
-  LAMBDA_FUNCTION: worldcuphub-daily-packs
+  LAMBDA_DAILY_PACKS: worldcuphub-daily-packs
+  LAMBDA_SYNC_STICKERS: worldcuphub-sync-stickers
+  LAMBDA_SEED_MATCHES: worldcuphub-seed-matches
+  LAMBDA_REFRESH_ODDS: worldcuphub-refresh-odds
 
 jobs:
   test-and-analyze:
@@ -82,47 +85,6 @@ jobs:
         docker push "$REGISTRY/$ECR_REPOSITORY:latest"
         echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
-  deploy-app-runner:
-    needs: build-and-push-ecr
-    runs-on: ubuntu-latest
-    if: false # Deshabilitado ya que usamos ECS en su lugar
-
-    steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-
-    - name: Deploy to App Runner
-      env:
-        SERVICE_ARN: ${{ secrets.APPRUNNER_SERVICE_ARN }}
-      run: |
-        DEPLOYMENT_ID=$(aws apprunner start-deployment \
-          --service-arn "$SERVICE_ARN" \
-          --query 'OperationId' \
-          --output text)
-        echo "Deployment started: $DEPLOYMENT_ID"
-
-    - name: Wait for App Runner to be running
-      env:
-        SERVICE_ARN: ${{ secrets.APPRUNNER_SERVICE_ARN }}
-      run: |
-        echo "Waiting for App Runner service to reach RUNNING status..."
-        for i in $(seq 1 24); do
-          STATUS=$(aws apprunner describe-service \
-            --service-arn "$SERVICE_ARN" \
-            --query 'Service.Status' \
-            --output text)
-          echo "  Status: $STATUS"
-          if [ "$STATUS" = "RUNNING" ]; then
-            echo "Service is RUNNING."
-            exit 0
-          fi
-          sleep 15
-        done
-        echo "Timed out waiting for App Runner." && exit 1
 
   deploy-ecs:
     needs: build-and-push-ecr
@@ -163,24 +125,30 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Package Lambda
+    - name: Build shared Lambda package
       run: |
         pip install -r requirements.txt -t lambda_package/ --quiet
         cp -r app/ lambda_package/app/
-        cp lambda_daily_packs.py lambda_package/
         cp run.py lambda_package/
-        cd lambda_package && zip -r ../lambda_daily_packs.zip . -x "*.pyc" -x "*/__pycache__/*"
+        cp lambda_daily_packs.py lambda_package/
+        cp lambda_sync_stickers.py lambda_package/
+        cp lambda_seed_matches.py lambda_package/
+        cp lambda_refresh_odds.py lambda_package/
+        cd lambda_package && zip -r ../lambda.zip . -x "*.pyc" -x "*/__pycache__/*"
 
-    - name: Update Lambda function code
+    - name: Deploy all Lambda functions
       run: |
-        aws lambda update-function-code \
-          --function-name "$LAMBDA_FUNCTION" \
-          --zip-file fileb://lambda_daily_packs.zip \
-          --region "$AWS_REGION"
-
-    - name: Wait for Lambda update to complete
-      run: |
-        aws lambda wait function-updated \
-          --function-name "$LAMBDA_FUNCTION" \
-          --region "$AWS_REGION"
-        echo "Lambda updated successfully."
+        for FUNC in \
+          "$LAMBDA_DAILY_PACKS" \
+          "$LAMBDA_SYNC_STICKERS" \
+          "$LAMBDA_SEED_MATCHES" \
+          "$LAMBDA_REFRESH_ODDS"; do
+          aws lambda update-function-code \
+            --function-name "$FUNC" \
+            --zip-file fileb://lambda.zip \
+            --region "$AWS_REGION"
+          aws lambda wait function-updated \
+            --function-name "$FUNC" \
+            --region "$AWS_REGION"
+          echo "Deployed: $FUNC"
+        done
