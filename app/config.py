@@ -37,7 +37,10 @@ class ProductionConfig(Config):
         'max_overflow': 20,
         'pool_timeout': 30,
         'pool_recycle': 1800,
-        'connect_args': {'sslmode': 'require'},
+        'connect_args': {
+            'sslmode': 'require',
+            'connect_timeout': 10
+        },
     }
 
 
