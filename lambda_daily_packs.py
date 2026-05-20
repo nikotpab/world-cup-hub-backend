@@ -46,7 +46,7 @@ def handler(event, context):
                     try:
                         notification_service.notify_user_from_id(
                             user_id=user.idUser,
-                            title="🎁 ¡Nuevos sobres disponibles!",
+                            title="¡Nuevos sobres disponibles!",
                             body=f"Tienes {DAILY_FREE_PACKS} sobres listos para abrir. ¡Entra a la app!",
                             notif_type="packs",
                         )
