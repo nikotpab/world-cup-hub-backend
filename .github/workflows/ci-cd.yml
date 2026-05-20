@@ -131,6 +131,9 @@ jobs:
         grep -vE "^(gunicorn|gevent|pytest|pytest-mock|pytest-cov|tomli|iniconfig|pluggy|exceptiongroup)" \
           requirements.txt > requirements-lambda.txt
 
+        # argon2-cffi-bindings >=25 no tiene wheel manylinux; dejar que pip resuelva la versión
+        sed -i 's/argon2-cffi-bindings==.*/argon2-cffi-bindings/' requirements-lambda.txt
+
         # Instalar con binarios compatibles con Amazon Linux 2 (x86_64)
         pip install -r requirements-lambda.txt \
           -t lambda_package/ \
