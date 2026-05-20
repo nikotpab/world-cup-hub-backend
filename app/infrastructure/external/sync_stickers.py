@@ -130,6 +130,8 @@ _ESPECIALES = {
     },
 }
 
+_TEAM_CREST = "TEAM CREST"
+
 _EQUIPOS = {
     "ARGENTINA": {
         "items": [
@@ -214,9 +216,6 @@ def _ensure_rarities(db):
             db.session.commit()
         rarity_map[name] = rc.rarityCatId
     return rarity_map
-
-
-_TEAM_CREST = "TEAM CREST"
 
 
 def _upsert(db, sticker_model, rarity_map, *, panini_code, name, team, category, rarity):

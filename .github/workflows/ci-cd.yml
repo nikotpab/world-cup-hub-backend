@@ -106,7 +106,7 @@ jobs:
           --region ${{ env.AWS_REGION }}
 
   deploy-lambda:
-    needs: build-and-push-ecr
+    needs: test-and-analyze
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
@@ -127,28 +127,48 @@ jobs:
 
     - name: Build shared Lambda package
       run: |
-        pip install -r requirements.txt -t lambda_package/ --quiet
+        # Filtrar dependencias que no son necesarias en Lambda
+        grep -vE "^(gunicorn|gevent|pytest|pytest-mock|pytest-cov|tomli|iniconfig|pluggy|exceptiongroup)" \
+          requirements.txt > requirements-lambda.txt
+
+        # Instalar con binarios compatibles con Amazon Linux 2 (x86_64)
+        pip install -r requirements-lambda.txt \
+          -t lambda_package/ \
+          --quiet \
+          --no-cache-dir \
+          --platform manylinux2014_x86_64 \
+          --only-binary=:all: \
+          --python-version 3.11 \
+          --implementation cp
+
+        # Copiar código fuente
         cp -r app/ lambda_package/app/
         cp run.py lambda_package/
         cp lambda_daily_packs.py lambda_package/
         cp lambda_sync_stickers.py lambda_package/
         cp lambda_seed_matches.py lambda_package/
         cp lambda_refresh_odds.py lambda_package/
+
+        # Crear zip limpio
         cd lambda_package && zip -r ../lambda.zip . -x "*.pyc" -x "*/__pycache__/*"
+        echo "Lambda zip size: $(du -sh ../lambda.zip | cut -f1)"
 
     - name: Deploy all Lambda functions
       run: |
         for FUNC in \
-          "$LAMBDA_DAILY_PACKS" \
           "$LAMBDA_SYNC_STICKERS" \
           "$LAMBDA_SEED_MATCHES" \
-          "$LAMBDA_REFRESH_ODDS"; do
+          "$LAMBDA_REFRESH_ODDS" \
+          "$LAMBDA_DAILY_PACKS"; do
+          echo "Deploying $FUNC..."
           aws lambda update-function-code \
             --function-name "$FUNC" \
             --zip-file fileb://lambda.zip \
-            --region "$AWS_REGION"
+            --region "$AWS_REGION" \
+            --query '{Function:FunctionName,Status:LastUpdateStatus}' \
+            --output table
           aws lambda wait function-updated \
             --function-name "$FUNC" \
             --region "$AWS_REGION"
-          echo "Deployed: $FUNC"
+          echo "✓ Deployed: $FUNC"
         done

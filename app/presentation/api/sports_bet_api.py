@@ -1,3 +1,5 @@
+import json
+
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timezone
 from sqlalchemy import func
@@ -11,12 +13,18 @@ from app.infrastructure.logger import app_logger
 sports_bet_bp = Blueprint("sports_bet_bp", __name__)
 _football_svc = FootballDataService()
 
+_ODDS_FALLBACK = {
+    "home_win": 2.0, "draw": 3.2, "away_win": 3.5,
+    "prob_home": 45.0, "prob_draw": 28.0, "prob_away": 27.0,
+    "expected_goals": {"home": 1.35, "away": 1.10},
+    "top_scores": [],
+}
+
 
 def _get_market_volumes(match_id: int) -> dict:
-    """Obtiene el volumen total de apuestas por cada resultado para un partido."""
     try:
         results = db.session.query(
-            SportsBet.betType, 
+            SportsBet.betType,
             func.sum(SportsBet.stake)
         ).filter(SportsBet.matchId == match_id).group_by(SportsBet.betType).all()
         return {bet_type: float(total) for bet_type, total in results}
@@ -24,22 +32,34 @@ def _get_market_volumes(match_id: int) -> dict:
         return {}
 
 
+def _get_cached_odds(match_id: int) -> dict | None:
+    if not match_id:
+        return None
+    try:
+        from app.infrastructure.cache.redis_client import redis_client
+        raw = redis_client.get(f"betting:odds:{match_id}")
+        if raw:
+            return json.loads(raw).get("odds")
+    except Exception:
+        pass
+    return None
+
+
+def _compute_odds(match_id: int, home: str, away: str) -> dict:
+    cached = _get_cached_odds(match_id)
+    if cached is not None:
+        return cached
+    market = _get_market_volumes(match_id) if match_id else {}
+    try:
+        return calculate_odds(home, away, market_volumes=market)
+    except Exception:
+        return _ODDS_FALLBACK
+
+
 def _enrich_match(m: dict) -> dict:
-    """Agrega cuotas Poisson dinámicas a un partido de la API."""
     match_id = m.get("id")
     home = m.get("homeTeam", {}).get("shortName") or m.get("homeTeam", {}).get("name", "Local")
     away = m.get("awayTeam", {}).get("shortName") or m.get("awayTeam", {}).get("name", "Visitante")
-    
-    # Obtener volúmenes del mercado (apuestas de usuarios reales)
-    market = _get_market_volumes(match_id) if match_id else {}
-    
-    try:
-        odds = calculate_odds(home, away, market_volumes=market)
-    except Exception:
-        odds = {"home_win": 2.0, "draw": 3.2, "away_win": 3.5,
-                "prob_home": 45.0, "prob_draw": 28.0, "prob_away": 27.0,
-                "expected_goals": {"home": 1.35, "away": 1.10},
-                "top_scores": []}
     return {
         "match_id":  match_id,
         "home_name": home,
@@ -50,7 +70,7 @@ def _enrich_match(m: dict) -> dict:
             "home": (m.get("score") or {}).get("fullTime", {}).get("home"),
             "away": (m.get("score") or {}).get("fullTime", {}).get("away"),
         },
-        "odds": odds,
+        "odds": _compute_odds(match_id, home, away),
     }
 
 
@@ -73,14 +93,11 @@ def get_betting_matches():
 
 @sports_bet_bp.route("/matches/<int:match_id>/odds", methods=["GET"])
 def get_match_odds(match_id: int):
-    """Calcula cuotas dinámicas para un partido específico."""
     home = request.args.get("home", "")
     away = request.args.get("away", "")
     if not home or not away:
-        return jsonify({"error": "ERR_BAD_REQUEST", "message": "home y away son requeridos"}), 400
-        
-    market = _get_market_volumes(match_id)
-    odds = calculate_odds(home, away, market_volumes=market)
+        return jsonify({"error": "ERR_BAD_REQUEST", "message": "home and away are required"}), 400
+    odds = _compute_odds(match_id, home, away)
     return jsonify({"match_id": match_id, "home": home, "away": away, "odds": odds}), 200
 
 
