@@ -127,12 +127,19 @@ jobs:
 
     - name: Build shared Lambda package
       run: |
-        # Filtrar dependencias que no son necesarias en Lambda
-        grep -vE "^(gunicorn|gevent|pytest|pytest-mock|pytest-cov|tomli|iniconfig|pluggy|exceptiongroup)" \
+        # Excluir paquetes no necesarios en Lambda:
+        # - gunicorn/gevent: servidor web, no aplica en Lambda
+        # - pytest*: solo tests
+        # - firebase-admin: trae grpcio (~50MB), no usado en estos Lambdas
+        # - boto3/botocore/s3transfer: preinstalados en el runtime de Lambda
+        # - stripe: no usado en sync/seed/odds
+        grep -vE "^(gunicorn|gevent|pytest|pytest-mock|pytest-cov|tomli|iniconfig|pluggy|exceptiongroup|firebase.admin|boto3|botocore|s3transfer|stripe)" \
           requirements.txt > requirements-lambda.txt
 
         # argon2-cffi-bindings >=25 no tiene wheel manylinux; dejar que pip resuelva la versión
         sed -i 's/argon2-cffi-bindings==.*/argon2-cffi-bindings/' requirements-lambda.txt
+
+        echo "=== requirements-lambda.txt ===" && cat requirements-lambda.txt
 
         # Instalar con binarios compatibles con Amazon Linux 2 (x86_64)
         pip install -r requirements-lambda.txt \
@@ -156,8 +163,19 @@ jobs:
         cd lambda_package && zip -r ../lambda.zip . -x "*.pyc" -x "*/__pycache__/*"
         echo "Lambda zip size: $(du -sh ../lambda.zip | cut -f1)"
 
-    - name: Deploy all Lambda functions
+    - name: Upload zip to S3 and deploy Lambda functions
+      env:
+        S3_BUCKET: worldcuphub-lambda-deployments
+        S3_KEY: lambda-${{ github.sha }}.zip
       run: |
+        # Crear bucket si no existe
+        aws s3api create-bucket --bucket $S3_BUCKET --region $AWS_REGION 2>/dev/null || true
+
+        # Subir zip a S3 (sin límite de 70MB del upload directo)
+        aws s3 cp lambda.zip s3://$S3_BUCKET/$S3_KEY --region $AWS_REGION
+        echo "✓ Zip subido a s3://$S3_BUCKET/$S3_KEY"
+
+        # Desplegar cada función desde S3
         for FUNC in \
           "$LAMBDA_SYNC_STICKERS" \
           "$LAMBDA_SEED_MATCHES" \
@@ -166,7 +184,8 @@ jobs:
           echo "Deploying $FUNC..."
           aws lambda update-function-code \
             --function-name "$FUNC" \
-            --zip-file fileb://lambda.zip \
+            --s3-bucket "$S3_BUCKET" \
+            --s3-key "$S3_KEY" \
             --region "$AWS_REGION" \
             --query '{Function:FunctionName,Status:LastUpdateStatus}' \
             --output table
