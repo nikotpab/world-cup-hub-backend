@@ -59,7 +59,7 @@ class AuthService:
         msg.attach(MIMEText(body, 'html'))
 
         try:
-            with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+            with smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10) as server:
                 server.login(sender_email, sender_password)
                 server.send_message(msg)
         except Exception as e:

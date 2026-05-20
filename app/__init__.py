@@ -4,28 +4,35 @@ from app.infrastructure.database import db
 from app.config import get_config
 
 def _run_startup_migrations(app):
-    """Añade columnas nuevas al esquema si aún no existen."""
-    with app.app_context():
-        try:
-            from app.infrastructure.database import db
-            db.session.execute(db.text(
-                'ALTER TABLE "USER" ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT \'{}\'::jsonb'
-            ))
-            db.session.execute(db.text(
-                "ALTER TABLE trade_proposal ADD COLUMN IF NOT EXISTS offered_sticker_ids JSONB DEFAULT '[]'::jsonb"
-            ))
-            # Migrate existing rows: copy offered_sticker_id → offered_sticker_ids
-            db.session.execute(db.text("""
-                UPDATE trade_proposal
-                SET offered_sticker_ids = jsonb_build_array(offered_sticker_id)
-                WHERE offered_sticker_id IS NOT NULL
-                  AND (offered_sticker_ids IS NULL
-                       OR offered_sticker_ids = '[]'::jsonb
-                       OR jsonb_array_length(offered_sticker_ids) = 0)
-            """))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+    """Añade columnas nuevas al esquema en un hilo para no bloquear el arranque del worker."""
+    import threading, time
+
+    def _migrate():
+        time.sleep(5)  # espera a que el worker esté listo para recibir requests
+        with app.app_context():
+            try:
+                from app.infrastructure.database import db
+                db.session.execute(db.text(
+                    'ALTER TABLE "USER" ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT \'{}\'::jsonb'
+                ))
+                db.session.execute(db.text(
+                    "ALTER TABLE trade_proposal ADD COLUMN IF NOT EXISTS offered_sticker_ids JSONB DEFAULT '[]'::jsonb"
+                ))
+                # Migrate existing rows: copy offered_sticker_id → offered_sticker_ids
+                db.session.execute(db.text("""
+                    UPDATE trade_proposal
+                    SET offered_sticker_ids = jsonb_build_array(offered_sticker_id)
+                    WHERE offered_sticker_id IS NOT NULL
+                      AND (offered_sticker_ids IS NULL
+                           OR offered_sticker_ids = '[]'::jsonb
+                           OR jsonb_array_length(offered_sticker_ids) = 0)
+                """))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    t = threading.Thread(target=_migrate, daemon=True, name="startup-migrations")
+    t.start()
 
 
 
@@ -90,6 +97,10 @@ def create_app(config_class=None):
     app.register_blueprint(proxy_bp, url_prefix=_API_V1)
     app.register_blueprint(news_bp, url_prefix=_API_V1)
     app.register_blueprint(feed_bp, url_prefix=_API_V1)
+
+    @app.route('/api/v1/health', methods=['GET'])
+    def health_check():
+        return jsonify({'status': 'ok'}), 200
     
     from sqlalchemy.exc import SQLAlchemyError
     
