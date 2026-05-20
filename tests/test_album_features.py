@@ -118,11 +118,12 @@ def test_open_pack_weighted(test_user, album_service, setup_stickers):
     
     result = album_service.open_pack(test_user.idUser)
     assert result['success'] is True
-    assert len(result['stickers']) == 5
+    assert len(result['stickers']) == 7
     
-    # Refresh album from DB
-    db.session.refresh(album)
-    assert len(album.stickers) == 5
+    # Verify stickers are in association table
+    from app.domain.models.album import sticker_album
+    count = db.session.query(sticker_album).filter_by(id_album=album.idAlbum).count()
+    assert count == 7
 
 def test_convert_duplicates(test_user, album_service, setup_stickers):
     album = Album(idUser=test_user.idUser, packBalance=0, coins=0)
@@ -160,8 +161,8 @@ def test_confirm_trade_with_transfer(test_user, other_user, trade_service, setup
     # Test user offers s1 for other_user's s2
     data = {
         "proposer_id": test_user.idUser,
-        "receiver_id": other_user.idUser,
-        "offered_sticker_id": s1.idSticker,
+        "receiver_email": other_user.email,
+        "offered_sticker_ids": [s1.idSticker],
         "requested_sticker_id": s2.idSticker
     }
     proposal = trade_service.propose_trade(data)
@@ -171,6 +172,7 @@ def test_confirm_trade_with_transfer(test_user, other_user, trade_service, setup
     assert result.status == 'COMPLETED'
     
     # Refresh albums
+    db.session.expire_all()
     db.session.refresh(album_test)
     db.session.refresh(album_other)
     
@@ -197,8 +199,8 @@ def test_trade_limit(test_user, other_user, trade_service, setup_stickers):
         
         data = {
             "proposer_id": test_user.idUser,
-            "receiver_id": other_user.idUser,
-            "offered_sticker_id": s1.idSticker,
+            "receiver_email": other_user.email,
+            "offered_sticker_ids": [s1.idSticker],
             "requested_sticker_id": s2.idSticker
         }
         prop = trade_service.propose_trade(data)
@@ -207,8 +209,8 @@ def test_trade_limit(test_user, other_user, trade_service, setup_stickers):
     # 6th trade proposal should fail
     data = {
         "proposer_id": test_user.idUser,
-        "receiver_id": other_user.idUser,
-        "offered_sticker_id": s1.idSticker,
+        "receiver_email": other_user.email,
+        "offered_sticker_ids": [s1.idSticker],
         "requested_sticker_id": s2.idSticker
     }
     
