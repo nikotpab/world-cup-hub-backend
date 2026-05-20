@@ -15,11 +15,11 @@ def community_service(mock_repo):
 
 def test_create_community_success(community_service, mock_repo):
     # Setup
-    user = User(userId=5, firstName="John", lastName="Doe")
+    user = User(idUser=5, firstName="John", lastName="Doe")
     mock_repo.get_user_by_id.return_value = user
     
     def save_community_side_effect(community):
-        community.community_id = 100
+        community.idCommunity = 100
         return community
     mock_repo.save_community.side_effect = save_community_side_effect
     
@@ -30,8 +30,8 @@ def test_create_community_success(community_service, mock_repo):
     
     # Assert
     assert result.name == "Friends Pool"
-    assert result.community_id == 100
-    assert 10000 <= result.invitation_code <= 99999
+    assert result.idCommunity == 100
+    assert 10000 <= int(result.invitationCode) <= 99999
     mock_repo.save_community.assert_called_once()
 
 def test_calculate_ranking_logic(community_service, mock_repo):

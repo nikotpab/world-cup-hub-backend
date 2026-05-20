@@ -46,9 +46,9 @@ class BetService:
             ).count()
             
             if daily_bets_count == 0:
-                album = Album.query.filter_by(userId=dto.userId).first()
+                album = Album.query.filter_by(idUser=dto.userId).first()
                 if not album:
-                    album = Album(userId=dto.userId, packBalance=0, coins=0)
+                    album = Album(idUser=dto.userId, packBalance=0, coins=0)
                     db.session.add(album)
                 
                 if album.packBalance is None: album.packBalance = 0
