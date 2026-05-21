@@ -99,29 +99,6 @@ class AlbumService:
             "collections": collections_list
         }
 
-    def claim_daily_reward(self, user_id: int) -> Dict[str, Any]:
-        album = Album.query.filter_by(idUser=user_id).first()
-        if not album:
-            album = Album(idUser=user_id, packBalance=0, coins=0)
-            db.session.add(album)
-            
-        if album.packBalance is None: album.packBalance = 0
-        if album.coins is None: album.coins = 0
-            
-        today = date.today()
-        if album.lastRewardDate == today:
-            return {"success": False, "message": "Ya has reclamado tu recompensa diaria hoy."}
-            
-        album.lastRewardDate = today
-        album.packBalance += 1
-        db.session.commit()
-        
-        return {
-            "success": True,
-            "message": "¡Has reclamado 1 sobre de láminas!",
-            "pack_balance": album.packBalance,
-            "packs_awarded": 1
-        }
 
     def redeem_promo_code(self, user_id: int, code: str) -> Dict[str, Any]:
         promo = PromoCode.query.filter_by(code=code).first()
@@ -174,9 +151,6 @@ class AlbumService:
 
         if album.packBalance is None:
             album.packBalance = 0
-
-        # Auto-claim daily packs before checking balance
-        self._auto_claim_daily(album)
 
         if album.packBalance <= 0:
             raise ValueError("No tienes sobres disponibles para abrir.")

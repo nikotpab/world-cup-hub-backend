@@ -32,7 +32,9 @@ def _get_market_volumes(match_id: int) -> dict:
         return {}
 
 
-def _get_cached_odds(match_id: int) -> dict | None:
+from typing import Optional
+
+def _get_cached_odds(match_id: int) -> Optional[dict]:
     if not match_id:
         return None
     try:

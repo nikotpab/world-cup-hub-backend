@@ -81,17 +81,6 @@ def setup_stickers():
         db.session.add(st)
     db.session.commit()
 
-def test_claim_daily_reward(test_user, album_service):
-    # First time claim
-    result = album_service.claim_daily_reward(test_user.idUser)
-    assert result['success'] is True
-    assert result['packs_awarded'] == 1
-    
-    # Second time same day
-    result = album_service.claim_daily_reward(test_user.idUser)
-    assert result['success'] is False
-    assert "reclamado" in result['message']
-
 def test_redeem_promo_code(test_user, album_service):
     promo = PromoCode(
         code="WORLD_CUP_2026",

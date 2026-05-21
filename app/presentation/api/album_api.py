@@ -46,21 +46,6 @@ def open_pack(user_id):
         return jsonify({"error": "ERR_INTERNAL", "message": str(e)}), 500
 
 
-@album_bp.route('/users/<int:user_id>/album/daily-reward', methods=['POST'])
-@require_auth
-@idempotent_request()
-def claim_daily_reward(user_id):
-    if not _is_self_or_admin(user_id):
-        return jsonify({"error": _ERR_FORBIDDEN}), 403
-    try:
-        result = album_service.claim_daily_reward(user_id)
-        return jsonify(result), 200
-    except ValueError as e:
-        return jsonify({"error": "ERR_BAD_REQUEST", "message": str(e)}), 400
-    except Exception as e:
-        return jsonify({"error": "ERR_INTERNAL", "message": str(e)}), 500
-
-
 @album_bp.route('/users/<int:user_id>/album/promo/redeem', methods=['POST'])
 @require_auth
 def redeem_promo_code(user_id):
