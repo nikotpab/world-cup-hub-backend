@@ -380,71 +380,26 @@ class AlbumService:
         return sec
 
     def _get_flags_mapping(self):
+        """Returns {DB_team_name → crest_url}.
+
+        DB stores team names as uppercase English (e.g. "ARGENTINA", "SPAIN")
+        and 3-letter TLA codes for special stickers (e.g. "ARG", "ESP").
+        We build keys for both formats so lookups always hit.
+        """
         try:
             from app.infrastructure.external.football_data_service import FootballDataService
             teams_data = FootballDataService().get_teams()
-            
-            es_to_en = {
-                "Brasil": "Brazil",
-                "Inglaterra": "England",
-                "España": "Spain",
-                "Francia": "France",
-                "Alemania": "Germany",
-                "Estados Unidos": "United States",
-                "Corea del Sur": "South Korea",
-                "Japón": "Japan",
-                "Países Bajos": "Netherlands",
-                "Marruecos": "Morocco",
-                "Arabia Saudita": "Saudi Arabia",
-                "México": "Mexico",
-                "Bélgica": "Belgium",
-                "Catar": "Qatar",
-                "Croacia": "Croatia",
-                "Suiza": "Switzerland",
-                "Camerún": "Cameroon",
-                "Gales": "Wales",
-                "Polonia": "Poland",
-                "Australia": "Australia",
-                "Dinamarca": "Denmark",
-                "Túnez": "Tunisia",
-                "Canadá": "Canada",
-                "Ecuador": "Ecuador",
-                "Ghana": "Ghana",
-                "Portugal": "Portugal",
-                "Uruguay": "Uruguay",
-                "Argentina": "Argentina",
-                "Colombia": "Colombia",
-                "Congo RD": "Congo DR",
-                "Cabo Verde": "Cape Verde Islands",
-                "Bosnia y Herzegovina": "Bosnia-Herzegovina",
-                "República Checa": "Czechia",
-                "Suecia": "Sweden",
-                "Haití": "Haiti",
-                "Egipto": "Egypt",
-                "Irán": "Iran",
-                "Curazao": "Curaçao",
-                "Sudáfrica": "South Africa",
-                "Paraguay": "Paraguay",
-                "Austria": "Austria",
-                "Irak": "Iraq",
-                "Jordania": "Jordan",
-                "Uzbekistán": "Uzbekistan",
-                "Nueva Zelanda": "New Zealand",
-                "Noruega": "Norway",
-                "Panamá": "Panama",
-                "Senegal": "Senegal",
-                "Argelia": "Algeria",
-                "Turquía": "Turkey",
-                "Costa de Marfil": "Ivory Coast",
-                "Escocia": "Scotland"
-            }
-            
-            en_to_crest = {t.get("name"): t.get("crest") for t in teams_data.get("teams", [])}
-            
             mapping = {}
-            for es, en in es_to_en.items():
-                if en in en_to_crest:
-                    mapping[es] = en_to_crest[en]
+            for t in teams_data.get("teams", []):
+                crest = t.get("crest")
+                if not crest:
+                    continue
+                name = t.get("name", "")
+                tla  = t.get("tla", "")
+                if name:
+                    mapping[name.upper()] = crest   # e.g. "ARGENTINA"
+                if tla:
+                    mapping[tla] = crest             # e.g. "ARG"
             return mapping
         except Exception:
             import logging
@@ -504,14 +459,34 @@ class AlbumService:
             self._SPECIAL_ORDER.get(s["key"], 99) if s["type"] == "special" else s["key"],
         ))
 
-        total_unique  = len(all_stickers)
-        total_owned   = len(owned_map)
-        completion    = round(total_owned / total_unique * 100, 2) if total_unique else 0
+        total_unique      = len(all_stickers)
+        total_owned       = len(owned_map)
+        repeated_stickers = sum(copies - 1 for copies in owned_map.values() if copies > 1)
+        completion        = round(total_owned / total_unique * 100, 2) if total_unique else 0
+
+        # Auto-claim daily packs (same logic as get_user_album)
+        self._auto_claim_daily(album)
+        db.session.commit()
+
+        collections = [
+            {
+                "id":      i + 1,
+                "name":    sec["label"],
+                "count":   sec["owned_count"],
+                "flagUrl": sec["flagUrl"],
+            }
+            for i, sec in enumerate(sections_list)
+            if sec["type"] == "team"
+        ]
 
         return {
-            "user_id":            user_id,
-            "total_owned":        total_owned,
-            "total_unique":       total_unique,
+            "user_id":               user_id,
+            "total_owned":           total_owned,
+            "total_unique":          total_unique,
             "completion_percentage": completion,
-            "sections":           sections_list,
+            "pack_balance":          album.packBalance or 0,
+            "coins":                 album.coins or 0,
+            "repeated_stickers":     repeated_stickers,
+            "collections":           collections,
+            "sections":              sections_list,
         }
