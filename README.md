@@ -269,7 +269,6 @@ Tickets follow the state machine: `Disponible` → `Reservada` → `Pagada` → 
 | `POST` | `/tickets/{ticket_id}/refund` | Refund a paid ticket |
 | `POST` | `/admin/tickets/expire` | Manually trigger reservation expiry (admin) |
 | `GET` | `/matches/ticketing` | List matches with available tickets and prices |
-| `POST` | `/admin/tickets/seed` | Seed matches and tickets from football-data.org (admin) |
 
 ### Digital Album
 
@@ -277,7 +276,6 @@ Tickets follow the state machine: `Disponible` → `Reservada` → `Pagada` → 
 |---|---|---|
 | `GET` | `/users/{user_id}/album` | Get user album with sticker inventory |
 | `POST` | `/users/{user_id}/packs/open` | Open a sticker pack |
-| `POST` | `/users/{user_id}/album/daily-reward` | Claim daily free packs |
 | `POST` | `/users/{user_id}/album/promo/redeem` | Redeem a promo code for packs |
 | `POST` | `/users/{user_id}/album/duplicates/convert` | Convert duplicate stickers to coins |
 | `POST` | `/users/{user_id}/album/store/buy-pack` | Purchase packs with coins |

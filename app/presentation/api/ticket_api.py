@@ -193,41 +193,4 @@ def _ensure_match(match_model, home, away, match_dt, price):
     return match_obj, 1
 
 
-@ticket_bp.route('/admin/tickets/seed', methods=['POST'])
-@require_role([1])
-def seed_tickets():
-    """
-    Crea partidos con datos reales del API de football-data.org
-    y genera N entradas Disponibles por partido.
-    Body: { "tickets_per_match": int (default 30) }
-    """
-    from app.domain.models.match import Match
-    from app.domain.models.ticket import Ticket, VALID_STATUSES
-    from app.infrastructure.external.football_data_service import FootballDataService
 
-    body = request.get_json() or {}
-    n = int(body.get('tickets_per_match', 30))
-    matches_data = FootballDataService().get_upcoming_matches().get('matches', [])[:15]
-
-    created_matches = 0
-    created_tickets = 0
-    price_tiers = [120.0, 150.0, 200.0, 280.0, 350.0]
-
-    for i, m in enumerate(matches_data):
-        home = (m.get('homeTeam') or {}).get('shortName') or (m.get('homeTeam') or {}).get('name', 'Local')
-        away = (m.get('awayTeam') or {}).get('shortName') or (m.get('awayTeam') or {}).get('name', 'Visitante')
-        price = price_tiers[i % len(price_tiers)]
-        match_obj, new_match = _ensure_match(Match, home, away, _parse_match_datetime(m.get('utcDate')), price)
-        created_matches += new_match
-
-        to_create = n - Ticket.query.filter_by(matchId=match_obj.matchId, status='Disponible').count()
-        for _ in range(max(0, to_create)):
-            db.session.add(Ticket(matchId=match_obj.matchId, status='Disponible', price=price))
-            created_tickets += 1
-
-    db.session.commit()
-    return jsonify({
-        "created_matches": created_matches,
-        "created_tickets": created_tickets,
-        "ttl_minutes": RESERVATION_TTL_MINUTES,
-    }), 201
