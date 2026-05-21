@@ -82,7 +82,7 @@ def handler(event, context):
                 )
 
         db.session.commit()
-        added_api = _sync_from_api(db, Sticker, rarity_map)
+        added_api = 0
         total = Sticker.query.count()
 
     logger.info({

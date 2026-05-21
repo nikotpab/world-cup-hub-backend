@@ -79,11 +79,7 @@ class AlbumService:
             })
 
         if not collections_list:
-            collections_list = [
-                {"id": 1, "name": "Argentina"},
-                {"id": 2, "name": "Colombia"},
-                {"id": 3, "name": "Spain"}
-            ]
+            pass
 
         completion_percentage = 0.0
         if total_available > 0:
