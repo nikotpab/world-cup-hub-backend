@@ -358,16 +358,11 @@ class AlbumService:
         return sec
 
     def _get_flags_mapping(self):
-        """Returns {DB_team_name → crest_url}.
-
-        DB stores team names as uppercase English (e.g. "ARGENTINA", "SPAIN")
-        and 3-letter TLA codes for special stickers (e.g. "ARG", "ESP").
-        We build keys for both formats so lookups always hit.
-        """
+        """Returns {DB_team_name → crest_url}."""
+        mapping = {}
         try:
             from app.infrastructure.external.football_data_service import FootballDataService
             teams_data = FootballDataService().get_teams()
-            mapping = {}
             for t in teams_data.get("teams", []):
                 crest = t.get("crest")
                 if not crest:
@@ -375,14 +370,70 @@ class AlbumService:
                 name = t.get("name", "")
                 tla  = t.get("tla", "")
                 if name:
-                    mapping[name.upper()] = crest   # e.g. "ARGENTINA"
+                    mapping[name.upper()] = crest
                 if tla:
-                    mapping[tla] = crest             # e.g. "ARG"
-            return mapping
+                    mapping[tla] = crest
         except Exception:
-            import logging
-            logging.exception("Error fetching flags")
-            return {}
+            pass
+
+        # Fallback para los 48 equipos de la Copa Mundial 2026 usando flagcdn
+        # Aseguramos que los equipos siempre tengan bandera si falló la API
+        fallback_flags = {
+            "ARGENTINA": "https://flagcdn.com/w320/ar.png",
+            "BRAZIL": "https://flagcdn.com/w320/br.png",
+            "URUGUAY": "https://flagcdn.com/w320/uy.png",
+            "COLOMBIA": "https://flagcdn.com/w320/co.png",
+            "ECUADOR": "https://flagcdn.com/w320/ec.png",
+            "VENEZUELA": "https://flagcdn.com/w320/ve.png",
+            "USA": "https://flagcdn.com/w320/us.png",
+            "MEXICO": "https://flagcdn.com/w320/mx.png",
+            "CANADA": "https://flagcdn.com/w320/ca.png",
+            "COSTA RICA": "https://flagcdn.com/w320/cr.png",
+            "PANAMA": "https://flagcdn.com/w320/pa.png",
+            "JAMAICA": "https://flagcdn.com/w320/jm.png",
+            "FRANCE": "https://flagcdn.com/w320/fr.png",
+            "GERMANY": "https://flagcdn.com/w320/de.png",
+            "ENGLAND": "https://flagcdn.com/w320/gb-eng.png",
+            "SPAIN": "https://flagcdn.com/w320/es.png",
+            "PORTUGAL": "https://flagcdn.com/w320/pt.png",
+            "NETHERLANDS": "https://flagcdn.com/w320/nl.png",
+            "ITALY": "https://flagcdn.com/w320/it.png",
+            "CROATIA": "https://flagcdn.com/w320/hr.png",
+            "BELGIUM": "https://flagcdn.com/w320/be.png",
+            "SWITZERLAND": "https://flagcdn.com/w320/ch.png",
+            "DENMARK": "https://flagcdn.com/w320/dk.png",
+            "SWEDEN": "https://flagcdn.com/w320/se.png",
+            "POLAND": "https://flagcdn.com/w320/pl.png",
+            "SERBIA": "https://flagcdn.com/w320/rs.png",
+            "MOROCCO": "https://flagcdn.com/w320/ma.png",
+            "SENEGAL": "https://flagcdn.com/w320/sn.png",
+            "EGYPT": "https://flagcdn.com/w320/eg.png",
+            "NIGERIA": "https://flagcdn.com/w320/ng.png",
+            "CAMEROON": "https://flagcdn.com/w320/cm.png",
+            "ALGERIA": "https://flagcdn.com/w320/dz.png",
+            "IVORY COAST": "https://flagcdn.com/w320/ci.png",
+            "GHANA": "https://flagcdn.com/w320/gh.png",
+            "MALI": "https://flagcdn.com/w320/ml.png",
+            "JAPAN": "https://flagcdn.com/w320/jp.png",
+            "IRAN": "https://flagcdn.com/w320/ir.png",
+            "SOUTH KOREA": "https://flagcdn.com/w320/kr.png",
+            "AUSTRALIA": "https://flagcdn.com/w320/au.png",
+            "SAUDI ARABIA": "https://flagcdn.com/w320/sa.png",
+            "QATAR": "https://flagcdn.com/w320/qa.png",
+            "IRAQ": "https://flagcdn.com/w320/iq.png",
+            "UZBEKISTAN": "https://flagcdn.com/w320/uz.png",
+            "UAE": "https://flagcdn.com/w320/ae.png",
+            "NEW ZEALAND": "https://flagcdn.com/w320/nz.png",
+            "PERU": "https://flagcdn.com/w320/pe.png",
+            "CHILE": "https://flagcdn.com/w320/cl.png",
+            "WALES": "https://flagcdn.com/w320/gb-wls.png",
+        }
+
+        for team, url in fallback_flags.items():
+            if team not in mapping:
+                mapping[team] = url
+
+        return mapping
 
     def get_album_progress(self, user_id: int) -> Dict[str, Any]:
         from app.domain.models.sticker import Sticker
