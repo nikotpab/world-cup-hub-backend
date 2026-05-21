@@ -12,15 +12,15 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 TEAMS_JSON = [
-  "México", "Sudáfrica", "República de Corea", "República Checa", "Canadá", 
-  "Bosnia y Herzegovina", "Catar", "Suiza", "Brasil", "Marruecos", "Haití", 
-  "Escocia", "Estados Unidos", "Paraguay", "Australia", "Turquía", "Alemania", 
-  "Curazao", "Costa de Marfil", "Ecuador", "Países Bajos", "Japón", "Suecia", 
-  "Túnez", "Bélgica", "Egipto", "RI de Irán", "Nueva Zelanda", "España", 
-  "Cabo Verde", "Arabia Saudí", "Uruguay", "Francia", "Senegal", "Irak", 
-  "Noruega", "Argentina", "Argelia", "Austria", "Jordania", "Portugal", 
-  "RD de Congo", "Uzbekistán", "Colombia", "Inglaterra", "Croacia", "Ghana", 
-  "Panamá"
+  "Mexico", "South Africa", "South Korea", "Czechia", "Canada", 
+  "Bosnia and Herzegovina", "Qatar", "Switzerland", "Brazil", "Morocco", "Haiti", 
+  "Scotland", "USA", "Paraguay", "Australia", "Turkey", "Germany", 
+  "Curacao", "Ivory Coast", "Ecuador", "Netherlands", "Japan", "Sweden", 
+  "Tunisia", "Belgium", "Egypt", "Iran", "New Zealand", "Spain", 
+  "Cape Verde", "Saudi Arabia", "Uruguay", "France", "Senegal", "Iraq", 
+  "Norway", "Argentina", "Algeria", "Austria", "Jordan", "Portugal", 
+  "DR Congo", "Uzbekistan", "Colombia", "England", "Croatia", "Ghana", 
+  "Panama"
 ]
 
 def handler(event, context):
