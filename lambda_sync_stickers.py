@@ -44,6 +44,9 @@ def handler(event, context):
                 db.session.commit()
             rarity_map[name] = rc.rarityCatId
 
+        # Get existing codes to ensure idempotency
+        existing_codes = {st.paniniCode for st in Sticker.query.all()}
+        
         added = 0
         current_id = 1000
 
@@ -52,57 +55,61 @@ def handler(event, context):
             team_upper = team_name.upper()
             
             # Fan Favourite
-            st = Sticker(
-                name=f"Jugador FF {team_upper}",
-                category="Fan Favourite",
-                rarity="Epic",
-                team=team_upper,
-                paniniCode=str(current_id),
-                raretyCatId=rarity_map["Epic"]
-            )
-            db.session.add(st)
+            if str(current_id) not in existing_codes:
+                st = Sticker(
+                    name=f"Jugador FF {team_upper}",
+                    category="Fan Favourite",
+                    rarity="Epic",
+                    team=team_upper,
+                    paniniCode=str(current_id),
+                    raretyCatId=rarity_map["Epic"]
+                )
+                db.session.add(st)
+                added += 1
             current_id += 1
-            added += 1
 
             # Team Crest
-            st = Sticker(
-                name="TEAM CREST",
-                category="Team Crest",
-                rarity="Rare",
-                team=team_upper,
-                paniniCode=str(current_id),
-                raretyCatId=rarity_map["Rare"]
-            )
-            db.session.add(st)
+            if str(current_id) not in existing_codes:
+                st = Sticker(
+                    name="TEAM CREST",
+                    category="Team Crest",
+                    rarity="Rare",
+                    team=team_upper,
+                    paniniCode=str(current_id),
+                    raretyCatId=rarity_map["Rare"]
+                )
+                db.session.add(st)
+                added += 1
             current_id += 1
-            added += 1
 
             # Icon Card
-            st = Sticker(
-                name=f"Jugador IC {team_upper}",
-                category="Icon Card",
-                rarity="Legendary",
-                team=team_upper,
-                paniniCode=str(current_id),
-                raretyCatId=rarity_map["Legendary"]
-            )
-            db.session.add(st)
+            if str(current_id) not in existing_codes:
+                st = Sticker(
+                    name=f"Jugador IC {team_upper}",
+                    category="Icon Card",
+                    rarity="Legendary",
+                    team=team_upper,
+                    paniniCode=str(current_id),
+                    raretyCatId=rarity_map["Legendary"]
+                )
+                db.session.add(st)
+                added += 1
             current_id += 1
-            added += 1
 
             # 9 Common Players
             for i in range(1, 10):
-                st = Sticker(
-                    name=f"Jugador {i} {team_upper}",
-                    category="Player",
-                    rarity="Common",
-                    team=team_upper,
-                    paniniCode=str(current_id),
-                    raretyCatId=rarity_map["Common"]
-                )
-                db.session.add(st)
+                if str(current_id) not in existing_codes:
+                    st = Sticker(
+                        name=f"Jugador {i} {team_upper}",
+                        category="Player",
+                        rarity="Common",
+                        team=team_upper,
+                        paniniCode=str(current_id),
+                        raretyCatId=rarity_map["Common"]
+                    )
+                    db.session.add(st)
+                    added += 1
                 current_id += 1
-                added += 1
 
         db.session.commit()
         total = Sticker.query.count()
