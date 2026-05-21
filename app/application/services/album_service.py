@@ -50,33 +50,39 @@ class AlbumService:
         
         total_available = Sticker.query.count() or 600
         
+        # Only show teams that have a full "album" set (i.e. have a Team Crest sticker)
+        proper_teams = {
+            s.team.upper()
+            for s in Sticker.query.filter_by(category="Team Crest").all()
+        }
+
         collections_map = {}
         for s in all_stickers:
             # Excluir stickers especiales (no pertenecen a un equipo real)
             if s.category in self._SPECIAL_CATEGORIES or s.team == "WORLD":
                 continue
-            team_name = s.team
-            if team_name not in collections_map:
-                collections_map[team_name] = set()
-            collections_map[team_name].add(s.idSticker)
-            
+            team_key = s.team.upper()  # normalise: "Argentina" == "ARGENTINA"
+            if team_key not in proper_teams:
+                continue  # skip API-only teams with incomplete sets
+            if team_key not in collections_map:
+                collections_map[team_key] = {"display": team_key.title(), "stickers": set()}
+            collections_map[team_key]["stickers"].add(s.idSticker)
+
         flags_map = self._get_flags_mapping()
         collections_list = []
-        i = 1
-        for team, unique_s in collections_map.items():
+        for i, (team_key, data) in enumerate(collections_map.items(), start=1):
             collections_list.append({
                 "id": i,
-                "name": team,
-                "count": len(unique_s),
-                "flagUrl": flags_map.get(team),
+                "name": data["display"],
+                "count": len(data["stickers"]),
+                "flagUrl": flags_map.get(team_key),
             })
-            i += 1
-            
+
         if not collections_list:
             collections_list = [
-                {"id": 1, "name": "Selección Argentina"},
-                {"id": 2, "name": "Selección Brasil"},
-                {"id": 3, "name": "Selección Francia"}
+                {"id": 1, "name": "Argentina"},
+                {"id": 2, "name": "Colombia"},
+                {"id": 3, "name": "Spain"}
             ]
 
         completion_percentage = 0.0
@@ -362,11 +368,13 @@ class AlbumService:
 
     def _build_section_entry(self, key: str, flags_map: dict) -> dict:
         is_special = key in self._SPECIAL_CATEGORIES
+        # key is already uppercase for team sections; try uppercase then title-case for flag lookup
+        flag = None if is_special else (flags_map.get(key) or flags_map.get(key.title()))
         return {
             "key":      key,
-            "label":    key.title(),
+            "label":    key.title() if not is_special else key,
             "type":     "special" if is_special else "team",
-            "flagUrl":  None if is_special else flags_map.get(key),
+            "flagUrl":  flag,
             "stickers": [],
         }
 
@@ -434,9 +442,20 @@ class AlbumService:
 
         flags_map = self._get_flags_mapping()
 
+        # Teams that have a full album set (have a "Team Crest" sticker)
+        proper_teams = {
+            s.team.upper()
+            for s in Sticker.query.filter_by(category="Team Crest").all()
+        }
+
         sections: Dict[str, dict] = {}
         for s in all_stickers:
-            key = s.category if s.category in self._SPECIAL_CATEGORIES else s.team
+            if s.category in self._SPECIAL_CATEGORIES:
+                key = s.category
+            else:
+                key = s.team.upper()  # normalise: "Argentina" → "ARGENTINA"
+                if key not in proper_teams:
+                    continue  # skip API-only teams
             if key not in sections:
                 sections[key] = self._build_section_entry(key, flags_map)
             owned_copies = owned_map.get(s.idSticker, 0)

@@ -161,6 +161,8 @@ _EQUIPOS = {
             {"numero": 113, "nombre": "JEFFERSON LERMA"},
             {"numero": 114, "nombre": "RICHARD RIOS"},
             {"numero": 115, "nombre": "JHON ARIAS"},
+            {"numero": 116, "nombre": "CUCHO HERNANDEZ"},
+            {"numero": 117, "nombre": "CARLOS CUESTA"},
         ]
     },
     "SPAIN": {
@@ -347,8 +349,14 @@ def _sync_from_api(db, sticker_model, rarity_map) -> int:
         return 0
 
     for team in teams:
-        team_name = team.get("shortName") or team.get("name", "UNKNOWN")
-        tla = team.get("tla", team_name[:3].upper())
+        raw_name = team.get("shortName") or team.get("name", "UNKNOWN")
+        team_name = raw_name.upper()  # normalise to uppercase so "Argentina" == "ARGENTINA"
+        tla = team.get("tla", team_name[:3])
+
+        # Skip teams already seeded from _EQUIPOS (they already have a "Team Crest" sticker)
+        if sticker_model.query.filter_by(team=team_name, category="Team Crest").first():
+            continue
+
         squad = _fetch_team_squad(api_url, team, headers)
 
         for idx, player in enumerate(squad):
