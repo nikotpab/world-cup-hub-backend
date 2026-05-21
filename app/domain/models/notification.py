@@ -1,13 +1,15 @@
 from app.infrastructure.database import db
 
 class Notification(db.Model):
-    __tablename__ = "NOTIFICATION"
-    
-    notificationId = db.Column('notification_id', db.Integer, primary_key=True, autoincrement=True)
-    messageType = db.Column('message_type', db.String(50), nullable=False)
-    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
-    message = db.Column('message', db.String(500), nullable=False)
-    user = db.relationship('User', backref='notifications')
-        db.session.add(self)
-        db.session.commit()
-        return self
+    __tablename__ = "notification"
+
+    idNotification = db.Column('id_notification', db.Integer, primary_key=True, autoincrement=True)
+    message        = db.Column('message', db.Text)
+    title          = db.Column('title', db.String(200))
+    channel        = db.Column('channel', db.String(50))
+    notifType      = db.Column('notif_type', db.String(50), default='general')
+    status         = db.Column('status', db.String(20), default='sent')
+    userId         = db.Column('user_id', db.Integer, db.ForeignKey('USER.iduser'), nullable=True)
+    referenceId    = db.Column('reference_id', db.Integer, nullable=True)
+    referenceType  = db.Column('reference_type', db.String(50), nullable=True)
+    createdAt      = db.Column('created_at', db.DateTime, default=db.func.current_timestamp())

@@ -1,0 +1,196 @@
+name: World Cup Hub CI/CD
+
+on:
+  push:
+    branches: [ "main", "develop", "security" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: world-cup-backend
+  LAMBDA_DAILY_PACKS: worldcuphub-daily-packs
+  LAMBDA_SYNC_STICKERS: worldcuphub-sync-stickers
+  LAMBDA_SEED_MATCHES: worldcuphub-seed-matches
+  LAMBDA_REFRESH_ODDS: worldcuphub-refresh-odds
+
+jobs:
+  test-and-analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Run Tests with Coverage
+      run: |
+        export DATABASE_URL="sqlite:///:memory:"
+        export SECRET_KEY="test-key"
+        export JWT_SECRET_KEY="test-jwt"
+        pytest tests/ --cov=app --cov-report=xml --cov-report=term
+
+    - name: SonarCloud Scan
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      if: ${{ env.SONAR_TOKEN != '' }}
+      uses: SonarSource/sonarcloud-github-action@master
+      with:
+        projectBaseDir: .
+
+  build-and-push-ecr:
+    needs: test-and-analyze
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/security'
+    runs-on: ubuntu-latest
+    outputs:
+      image-uri: ${{ steps.build.outputs.image-uri }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Log in to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and push image to ECR
+      id: build
+      env:
+        REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker build -t "$IMAGE_URI" .
+        docker push "$IMAGE_URI"
+        docker tag "$IMAGE_URI" "$REGISTRY/$ECR_REPOSITORY:latest"
+        docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+        echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+
+  deploy-ecs:
+    needs: build-and-push-ecr
+    runs-on: ubuntu-latest
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Deploy to Amazon ECS
+      run: |
+        aws ecs update-service \
+          --cluster world-cup-hub-cluster \
+          --service world-cup-backend-service \
+          --force-new-deployment \
+          --region ${{ env.AWS_REGION }}
+
+  deploy-lambda:
+    needs: test-and-analyze
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Build shared Lambda package
+      run: |
+        # Excluir paquetes no necesarios en Lambda:
+        # - gunicorn/gevent: servidor web, no aplica en Lambda
+        # - pytest*: solo tests
+        # - firebase-admin: trae grpcio (~50MB), no usado en estos Lambdas
+        # - boto3/botocore/s3transfer: preinstalados en el runtime de Lambda
+        # - stripe: no usado en sync/seed/odds
+        grep -vE "^(gunicorn|gevent|pytest|pytest-mock|pytest-cov|tomli|iniconfig|pluggy|exceptiongroup|firebase.admin|boto3|botocore|s3transfer|stripe)" \
+          requirements.txt > requirements-lambda.txt
+
+        # argon2-cffi-bindings >=25 no tiene wheel manylinux; dejar que pip resuelva la versión
+        sed -i 's/argon2-cffi-bindings==.*/argon2-cffi-bindings/' requirements-lambda.txt
+
+        echo "=== requirements-lambda.txt ===" && cat requirements-lambda.txt
+
+        # Instalar con binarios compatibles con Amazon Linux 2 (x86_64)
+        pip install -r requirements-lambda.txt \
+          -t lambda_package/ \
+          --quiet \
+          --no-cache-dir \
+          --platform manylinux2014_x86_64 \
+          --only-binary=:all: \
+          --python-version 3.11 \
+          --implementation cp
+
+        # Copiar código fuente
+        cp -r app/ lambda_package/app/
+        cp run.py lambda_package/
+        cp lambda_daily_packs.py lambda_package/
+        cp lambda_sync_stickers.py lambda_package/
+        cp lambda_seed_matches.py lambda_package/
+        cp lambda_refresh_odds.py lambda_package/
+
+        # Crear zip limpio
+        cd lambda_package && zip -r ../lambda.zip . -x "*.pyc" -x "*/__pycache__/*"
+        echo "Lambda zip size: $(du -sh ../lambda.zip | cut -f1)"
+
+    - name: Upload zip to S3 and deploy Lambda functions
+      env:
+        S3_BUCKET: worldcuphub-lambda-deployments
+        S3_KEY: lambda-${{ github.sha }}.zip
+      run: |
+        # Crear bucket si no existe
+        aws s3api create-bucket --bucket $S3_BUCKET --region $AWS_REGION 2>/dev/null || true
+
+        # Subir zip a S3 (sin límite de 70MB del upload directo)
+        aws s3 cp lambda.zip s3://$S3_BUCKET/$S3_KEY --region $AWS_REGION
+        echo "✓ Zip subido a s3://$S3_BUCKET/$S3_KEY"
+
+        # Desplegar cada función desde S3
+        for FUNC in \
+          "$LAMBDA_SYNC_STICKERS" \
+          "$LAMBDA_SEED_MATCHES" \
+          "$LAMBDA_REFRESH_ODDS" \
+          "$LAMBDA_DAILY_PACKS"; do
+          echo "Deploying $FUNC..."
+          aws lambda update-function-code \
+            --function-name "$FUNC" \
+            --s3-bucket "$S3_BUCKET" \
+            --s3-key "$S3_KEY" \
+            --region "$AWS_REGION" \
+            --query '{Function:FunctionName,Status:LastUpdateStatus}' \
+            --output table
+          aws lambda wait function-updated \
+            --function-name "$FUNC" \
+            --region "$AWS_REGION"
+          echo "✓ Deployed: $FUNC"
+        done

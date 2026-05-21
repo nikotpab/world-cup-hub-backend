@@ -8,13 +8,17 @@ class SqlAlchemyUserRepository(IUserRepository):
         if not user:
             return None
         return {
-            "userId": user.userId,
-            "identification": user.identification,
-            "firstName": user.firstName,
-            "lastName": user.lastName,
-            "email": user.email,
-            "registeredAt": user.registeredAt,
-            "roleId": user.roleId
+            "userId":           user.idUser,
+            "firstName":        user.firstName,
+            "lastName":         user.lastName,
+            "email":            user.email,
+            "password":         user.password,
+            "createdAt":        user.createdAt,
+            "roleId":           user.idRole,
+            "verified":         user.verified,
+            "verificationCode": user.verificationCode,
+            "accountStatus":    user.accountStatus,
+            "profilePicture":   user.profilePicture,
         }
 
     def get_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
@@ -25,15 +29,39 @@ class SqlAlchemyUserRepository(IUserRepository):
         user = User.query.filter_by(email=email).first()
         return self._to_dict(user)
 
+    # dict key → User model attribute
+    _FIELD_MAP = {
+        "firstName":        "firstName",
+        "lastName":         "lastName",
+        "email":            "email",
+        "password":         "password",
+        "verified":         "verified",
+        "verificationCode": "verificationCode",
+        "accountStatus":    "accountStatus",
+        "roleId":           "idRole",
+        "profilePicture":   "profilePicture",
+    }
+
     def save(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
-        if "userId" in user_data and user_data["userId"]:
-            user = User.query.get(user_data["userId"])
-            for key, value in user_data.items():
-                setattr(user, key, value)
+        user_id = user_data.get("userId")
+        if user_id:
+            user = User.query.get(user_id)
+            if not user:
+                raise ValueError("Usuario no encontrado")
+            for dict_key, attr in self._FIELD_MAP.items():
+                if dict_key in user_data:
+                    setattr(user, attr, user_data[dict_key])
         else:
-            user = User(**user_data)
+            user = User(
+                firstName=user_data["firstName"],
+                lastName=user_data["lastName"],
+                email=user_data["email"],
+                password=user_data["password"],
+                verified=user_data.get("verified", False),
+                verificationCode=user_data.get("verificationCode"),
+                idRole=user_data.get("roleId", 2),
+            )
             db.session.add(user)
-            
         db.session.commit()
         return self._to_dict(user)
 

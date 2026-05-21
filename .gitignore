@@ -48,7 +48,8 @@ cover/
 
 # Environments
 .env
-.venv
+.venv/
+.venv_new/
 env/
 venv/
 ENV/
@@ -64,3 +65,7 @@ venv.bak/
 
 .DS_Store
 Thumbs.db
+
+# Local SQLite database
+instance/
+

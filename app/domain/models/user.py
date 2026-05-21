@@ -1,14 +1,22 @@
 from app.infrastructure.database import db
+from app.domain.models.role import Role
 
 class User(db.Model):
     __tablename__ = "USER"
     
-    userId = db.Column('user_id', db.Integer, primary_key=True, autoincrement=True)
-    identification = db.Column('identification', db.Integer, nullable=False)
-    password = db.Column('password', db.String(200), nullable=True)
-    firstName = db.Column('name', db.String(200), nullable=False)
-    lastName = db.Column('last_name', db.String(200), nullable=False)
-    email = db.Column('email', db.String(200), nullable=False)
-    registeredAt = db.Column('registration_date', db.DateTime, nullable=True)
-    roleId = db.Column('ROLE_role_id', db.Integer, db.ForeignKey('ROLE.role_id'), nullable=False)
+    idUser = db.Column('iduser', db.Integer, primary_key=True, autoincrement=True)
+    firstName = db.Column('firstname', db.String(100), nullable=False)
+    lastName = db.Column('lastname', db.String(100), nullable=False)
+    identification = db.Column('identification', db.Integer, nullable=True)
+    email = db.Column('email', db.String(100), unique=True, nullable=False)
+    password = db.Column('password', db.String(255), nullable=False)
+    createdAt = db.Column('createdat', db.DateTime, default=db.func.current_timestamp())
+    idRole = db.Column('idrole', db.Integer, db.ForeignKey('role.idrole'), default=2)
+    verified = db.Column('verified', db.Boolean, default=False)
+    verificationCode = db.Column('verificationcode', db.String(6), nullable=True)
+    accountStatus = db.Column('accountstatus', db.String(20), default='activo')
+    fcmToken = db.Column('fcm_token', db.String(300), nullable=True)
+    profilePicture = db.Column('profilepicture', db.Text, nullable=True)
+    preferences = db.Column('preferences', db.JSON, nullable=True, default=dict)
+
     role = db.relationship('Role', backref='users')

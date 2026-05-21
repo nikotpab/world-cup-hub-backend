@@ -1,14 +1,24 @@
 from app.infrastructure.database import db
 
+VALID_STATUSES = ('Disponible', 'Reservada', 'Pagada', 'Transferida', 'Reembolsada', 'Expirada')
+
 class Ticket(db.Model):
-    __tablename__ = "TICKET"
-    
-    ticketId = db.Column('ticket_id', db.Integer, primary_key=True)
-    status = db.Column('status', db.String(50), nullable=False)
-    reservationDate = db.Column('reservation_date', db.DateTime, nullable=True)
-    expirationDate = db.Column('expiration_date', db.DateTime, nullable=False)
-    price = db.Column('price', db.Float, nullable=False)
-    matchId = db.Column('MATCH_match_id', db.Integer, db.ForeignKey('MATCH.match_id'), nullable=False)
-    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), primary_key=True, nullable=False)
+    __tablename__ = "ticket"
+
+    ticketId       = db.Column('id_ticket',       db.Integer, primary_key=True, autoincrement=True)
+    status         = db.Column('status',           db.String(50), nullable=False, default='Disponible')
+    price          = db.Column('price',            db.Numeric(10, 2))
+    reservedAt     = db.Column('reserved_at',      db.DateTime)
+    expirationDate = db.Column('expiration_date',  db.DateTime)
+    paidAt         = db.Column('paid_at',          db.DateTime)
+    correlationId  = db.Column('correlation_id',   db.String(36))
+    matchId        = db.Column('id_match', db.Integer, db.ForeignKey('match.idmatch'))
+    userId         = db.Column('id_user',  db.Integer, db.ForeignKey('USER.iduser'))
+
     match = db.relationship('Match', backref='tickets')
-    user = db.relationship('User', backref='tickets')
+    user  = db.relationship('User',  backref='tickets')
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
+        return self

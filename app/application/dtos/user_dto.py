@@ -3,22 +3,22 @@ from typing import Optional
 from datetime import datetime
 
 class UserCreateDTO(BaseModel):
-    identification: int
     password: str
     firstName: str
     lastName: str
     email: EmailStr
-    roleId: int
+    roleId: Optional[int] = None
     
     model_config = ConfigDict(extra='forbid')
 
 class UserResponseDTO(BaseModel):
     userId: int
-    identification: int
     firstName: str
     lastName: str
     email: EmailStr
     registeredAt: Optional[datetime] = None
-    roleId: int
+    roleId: Optional[int] = None
+    verified: bool
+    profilePicture: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -24,4 +24,4 @@ RUN adduser -D nonrootuser
 USER nonrootuser
 
 EXPOSE 8000
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--worker-class", "gevent", "-w", "4", "run:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--worker-class", "gevent", "-w", "4", "--timeout", "120", "run:app"]

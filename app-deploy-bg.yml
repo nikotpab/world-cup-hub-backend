@@ -14,6 +14,7 @@ spec:
         app: world-cup-backend
         version: green
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: backend
         image: world-cup-rest:1.0.1  # Tag a actualizar por CI/CD
@@ -21,6 +22,7 @@ spec:
           requests:
             cpu: 100m
             memory: 128Mi
+            ephemeral-storage: 500Mi
           limits:
             cpu: 500m
             memory: 256Mi

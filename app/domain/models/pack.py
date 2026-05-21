@@ -1,19 +1,23 @@
 from app.infrastructure.database import db
 
-pack_sticker = db.Table('PACK_STICKER',
-    db.Column('STICKER_card_id', db.Integer, db.ForeignKey('STICKER.card_id'), primary_key=True),
-    db.Column('PACK_pakage_id', db.Integer, db.ForeignKey('PACK.pakage_id'), primary_key=True),
+pack_sticker = db.Table('pack_sticker',
+    db.Column('id', db.Integer, primary_key=True, autoincrement=True),
+    db.Column('id_sticker', db.Integer, db.ForeignKey('sticker.id_sticker')),
+    db.Column('id_pack', db.Integer, db.ForeignKey('pack.id_pack')),
     extend_existing=True
 )
 
 class Pack(db.Model):
-    __tablename__ = "PACK"
+    __tablename__ = "pack"
     
-    packId = db.Column('pakage_id', db.Integer, primary_key=True, autoincrement=True)
-    openedAt = db.Column('aperture_date', db.DateTime, nullable=False)
-    userId = db.Column('USER_user_id', db.Integer, db.ForeignKey('USER.user_id'), nullable=False)
+    idPack = db.Column('id_pack', db.Integer, primary_key=True, autoincrement=True)
+    openedAt = db.Column('opened_at', db.DateTime, default=db.func.current_timestamp())
+    idUser = db.Column('id_user', db.Integer, db.ForeignKey('USER.iduser'), nullable=False)
+    
     user = db.relationship('User', backref='packs')
-    stickers = db.relationship('Sticker', secondary='PACK_STICKER', backref='packs')
+    stickers = db.relationship('Sticker', secondary=pack_sticker, backref='packs')
+
+    def save(self):
         db.session.add(self)
         db.session.commit()
         return self

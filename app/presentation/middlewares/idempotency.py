@@ -12,7 +12,7 @@ def idempotent_request(expire_seconds=86400):
                 
             idempotency_key = request.headers.get('X-Idempotency-Key')
             if not idempotency_key:
-                return jsonify({"error": "ERR_MISSING_IDEMPOTENCY_KEY", "message": "X-Idempotency-Key is required for this operation"}), 400
+                return f(*args, **kwargs)
                 
             redis_key = f"idempotency_{idempotency_key}"
             

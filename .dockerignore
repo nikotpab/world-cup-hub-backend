@@ -30,5 +30,12 @@ htmlcov
 .tox
 noxfile.py
 .hypothesis
+tests/
+instance/
+*.log
+*.md
+audit.sh
+app-deploy-bg.yml
+sonar-project.properties
 .git
 .gitignore
