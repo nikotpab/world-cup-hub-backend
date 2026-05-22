@@ -56,12 +56,57 @@ class NotificationService:
                      notif_type=notif_type, reference_id=reference_id, reference_type=reference_type)
         return "ok" if success else f"error: {error}"
 
+    @staticmethod
+    def _build_email_html(title: str, body: str) -> str:
+        return f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+</head>
+<body style="margin:0;padding:0;background:#F4F4F0;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F4F4F0;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:#00341C;padding:32px 40px 24px;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;color:#CCFF00;text-transform:uppercase;">World Cup Hub</p>
+              <h1 style="margin:12px 0 0;font-size:28px;font-weight:900;color:#FFFFFF;letter-spacing:-1px;line-height:1.1;">{title}</h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="background:#FFFFFF;padding:32px 40px;border-left:2px solid #00341C;border-right:2px solid #00341C;">
+              <p style="margin:0;font-size:16px;line-height:1.7;color:#1A1A1A;">{body}</p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#00341C;padding:20px 40px;border-top:4px solid #CCFF00;">
+              <p style="margin:0;font-size:11px;color:#CCFF00;letter-spacing:2px;font-weight:700;">WORLD CUP HUB &mdash; 2026</p>
+              <p style="margin:6px 0 0;font-size:11px;color:#FFFFFF;opacity:0.7;">Este correo fue generado automaticamente. No respondas a este mensaje.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
     def _send_email(self, db, user_id, email, title, body,
                     notif_type, reference_id, reference_type) -> str:
         success, error = True, None
         try:
             from app.infrastructure.external.email_service import SmtpEmailService
-            SmtpEmailService().send_email(email, title, f"<h2>{title}</h2><p>{body}</p>")
+            SmtpEmailService().send_email(email, title, self._build_email_html(title, body))
         except Exception as e:
             success, error = False, str(e)
             app_logger.error({"event": "email_error", "user_id": user_id, "details": str(e)})
