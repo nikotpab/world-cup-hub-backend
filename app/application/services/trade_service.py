@@ -4,7 +4,7 @@ from app.domain.models.trade_proposal import TradeProposal
 from app.domain.models.pack import Pack, pack_sticker
 from app.domain.models.album import Album, sticker_album
 from app.infrastructure.database import db
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,8 @@ class TradeService:
             raise ValueError("No puedes intercambiar láminas contigo mismo.")
         
         # Check daily trade limit
-        today_start = datetime.combine(date.today(), datetime.min.time())
+        tz_utc_minus_5 = timezone(timedelta(hours=-5))
+        today_start = datetime.now(tz_utc_minus_5).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
         daily_trades_count = TradeProposal.query.filter(
             TradeProposal.proposer_id == dto.proposer_id,
             TradeProposal.status == 'COMPLETED',
@@ -91,7 +92,8 @@ class TradeService:
             if trade.status != 'PENDING_CONFIRMATION':
                 raise ValueError(f"Trade is already in status: {trade.status}")
                 
-            today_start = datetime.combine(date.today(), datetime.min.time())
+            tz_utc_minus_5 = timezone(timedelta(hours=-5))
+            today_start = datetime.now(tz_utc_minus_5).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
             receiver_trades_count = TradeProposal.query.filter(
                 TradeProposal.receiver_id == trade.receiver_id,
                 TradeProposal.status == 'COMPLETED',

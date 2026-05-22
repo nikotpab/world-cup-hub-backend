@@ -18,9 +18,24 @@ class SqlAlchemyAdminRepository(IAdminRepository):
         return True
 
     def get_user_timeline(self, user_id: int) -> List[Dict[str, Any]]:
-        # Extrae eventos en la tabla Event
-        events = Event.query.filter_by(userId=user_id).order_by(Event.date.desc()).all()
-        return [{"eventId": e.eventId, "type": e.type, "date": e.date, "description": e.description} for e in events]
+        # Extrae eventos en la tabla Audit que correspondan a este user_id
+        import json
+        from app.domain.models.audit import Audit
+        audits = Audit.query.order_by(Audit.createdAt.desc(), Audit.idAudit.desc()).all()
+        timeline = []
+        for a in audits:
+            try:
+                payload = json.loads(a.payload) if a.payload else {}
+                if payload.get("user_id") == user_id or payload.get("userId") == user_id:
+                    timeline.append({
+                        "eventId": a.idAudit,
+                        "type": a.action,
+                        "date": a.createdAt.isoformat() if a.createdAt else None,
+                        "description": f"{a.action} on {a.affectedEntity} (Result: {a.result})"
+                    })
+            except Exception:
+                pass
+        return timeline
 
     def generate_compliance_report(self) -> List[Dict[str, Any]]:
         # Retorna data agregada anónima para evitar exponer logs sensibles

@@ -19,5 +19,6 @@ class SportsBet(db.Model):
     # 'pending' | 'won' | 'lost' | 'cancelled'
     createdAt      = db.Column('created_at',     db.DateTime,    default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     settledAt      = db.Column('settled_at',     db.DateTime,    nullable=True)
+    stripeIntentId = db.Column('stripe_intent_id', db.String(255),  nullable=True)
 
     user = db.relationship('User', backref='sports_bets')

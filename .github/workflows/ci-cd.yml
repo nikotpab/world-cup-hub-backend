@@ -53,7 +53,7 @@ jobs:
 
   build-and-push-ecr:
     needs: test-and-analyze
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/security'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       image-uri: ${{ steps.build.outputs.image-uri }}
@@ -107,7 +107,7 @@ jobs:
 
   deploy-lambda:
     needs: test-and-analyze
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:

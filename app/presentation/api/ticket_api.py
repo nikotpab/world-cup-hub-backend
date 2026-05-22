@@ -40,6 +40,18 @@ def get_user_tickets(user_id):
     results = ticket_service.get_user_tickets(user_id)
     return jsonify([r.model_dump() for r in results]), 200
 
+@ticket_bp.route('/users/<int:user_id>/tickets/daily-stats', methods=['GET'])
+def get_user_daily_stats(user_id):
+    from app.application.services.ticket_service import MAX_PURCHASES_PER_DAY, MAX_TRANSFERS_PER_DAY
+    purchases_today = ticket_repo.count_purchases_today(user_id)
+    transfers_today = ticket_repo.count_transfers_today(user_id)
+    return jsonify({
+        "purchasesToday": purchases_today,
+        "maxPurchasesPerDay": MAX_PURCHASES_PER_DAY,
+        "transfersToday": transfers_today,
+        "maxTransfersPerDay": MAX_TRANSFERS_PER_DAY
+    }), 200
+
 @ticket_bp.route('/tickets/<int:ticket_id>/history', methods=['GET'])
 def get_ticket_history(ticket_id):
     try:
