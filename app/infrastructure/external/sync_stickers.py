@@ -1,7 +1,15 @@
 """
-Seed completo del álbum FIFA World Cup 2026 Adrenalyn XL.
-Fuente 1: JSON oficial (gemini-code-1778726997488.json) — hardcodeado abajo.
-Fuente 2: API football-data.org /v4/competitions/WC/teams para jugadores adicionales.
+Seed de cartas especiales cross-equipo del álbum FIFA World Cup 2026 Adrenalyn XL.
+
+Siembra únicamente las secciones de cartas especiales (Golden Ballers, Top Keepers,
+Defensive Rocks, Midfield Maestros, Goal Machines, Master Rookies) y otros items
+(Official Emblem, Mascots, Eternals) con paniniCodes en el rango 3001-3089.
+
+El seed de los 48 equipos con jugadores reales y códigos oficiales (rango 160-2014)
+es responsabilidad exclusiva de lambda_sync_stickers.py.  Ambos scripts pueden
+ejecutarse en cualquier orden sin conflictos de paniniCode.
+
+_EQUIPOS queda en el archivo como referencia histórica pero NO se siembra.
 
 Uso:
     python -m app.infrastructure.external.sync_stickers
@@ -19,113 +27,113 @@ _ESPECIALES = {
     "golden_ballers": {
         "category": "Golden Baller", "rarity": "Legendary",
         "items": [
-            {"numero": 1,  "nombre": "MESSI",          "pais": "ARG"},
-            {"numero": 2,  "nombre": "VINICIUS JUNIOR", "pais": "BRA"},
-            {"numero": 3,  "nombre": "SALAH",           "pais": "EGY"},
-            {"numero": 4,  "nombre": "KANE",            "pais": "ENG"},
-            {"numero": 5,  "nombre": "MBAPPE",          "pais": "FRA"},
-            {"numero": 6,  "nombre": "SON",             "pais": "KOR"},
-            {"numero": 7,  "nombre": "HAALAND",         "pais": "NOR"},
-            {"numero": 8,  "nombre": "RONALDO",         "pais": "POR"},
+            {"numero": 3001,  "nombre": "MESSI",          "pais": "ARG"},
+            {"numero": 3002,  "nombre": "VINICIUS JUNIOR", "pais": "BRA"},
+            {"numero": 3003,  "nombre": "SALAH",           "pais": "EGY"},
+            {"numero": 3004,  "nombre": "KANE",            "pais": "ENG"},
+            {"numero": 3005,  "nombre": "MBAPPE",          "pais": "FRA"},
+            {"numero": 3006,  "nombre": "SON",             "pais": "KOR"},
+            {"numero": 3007,  "nombre": "HAALAND",         "pais": "NOR"},
+            {"numero": 3008,  "nombre": "RONALDO",         "pais": "POR"},
         ],
     },
     "top_keepers": {
         "category": "Top Keeper", "rarity": "Epic",
         "items": [
-            {"numero": 550, "nombre": "MARTÍNEZ",    "pais": "ARG"},
-            {"numero": 551, "nombre": "COURTOIS",    "pais": "BEL"},
-            {"numero": 552, "nombre": "ALISSON",     "pais": "BRA"},
-            {"numero": 553, "nombre": "MAIGNAN",     "pais": "FRA"},
-            {"numero": 554, "nombre": "SUZUKI",      "pais": "JPN"},
-            {"numero": 555, "nombre": "BOUNOU",      "pais": "MAR"},
-            {"numero": 556, "nombre": "DIOGO COSTA", "pais": "POR"},
-            {"numero": 557, "nombre": "SIMON",       "pais": "ESP"},
-            {"numero": 558, "nombre": "KOBEL",       "pais": "SUI"},
+            {"numero": 3009, "nombre": "MARTÍNEZ",    "pais": "ARG"},
+            {"numero": 3010, "nombre": "COURTOIS",    "pais": "BEL"},
+            {"numero": 3011, "nombre": "ALISSON",     "pais": "BRA"},
+            {"numero": 3012, "nombre": "MAIGNAN",     "pais": "FRA"},
+            {"numero": 3013, "nombre": "SUZUKI",      "pais": "JPN"},
+            {"numero": 3014, "nombre": "BOUNOU",      "pais": "MAR"},
+            {"numero": 3015, "nombre": "DIOGO COSTA", "pais": "POR"},
+            {"numero": 3016, "nombre": "SIMON",       "pais": "ESP"},
+            {"numero": 3017, "nombre": "KOBEL",       "pais": "SUI"},
         ],
     },
     "defensive_rocks": {
         "category": "Defensive Rock", "rarity": "Epic",
         "items": [
-            {"numero": 559, "nombre": "EDER MILITÃO", "pais": "BRA"},
-            {"numero": 560, "nombre": "DAVIES",       "pais": "CAN"},
-            {"numero": 561, "nombre": "SALIBA",       "pais": "FRA"},
-            {"numero": 562, "nombre": "RÜDIGER",      "pais": "GER"},
-            {"numero": 563, "nombre": "KIM",          "pais": "KOR"},
-            {"numero": 564, "nombre": "HAKIMI",       "pais": "MAR"},
-            {"numero": 565, "nombre": "VAN DIJK",     "pais": "NED"},
-            {"numero": 566, "nombre": "NUNO MENDES",  "pais": "POR"},
-            {"numero": 567, "nombre": "HUIJSEN",      "pais": "ESP"},
+            {"numero": 3018, "nombre": "EDER MILITÃO", "pais": "BRA"},
+            {"numero": 3019, "nombre": "DAVIES",       "pais": "CAN"},
+            {"numero": 3020, "nombre": "SALIBA",       "pais": "FRA"},
+            {"numero": 3021, "nombre": "RÜDIGER",      "pais": "GER"},
+            {"numero": 3022, "nombre": "KIM",          "pais": "KOR"},
+            {"numero": 3023, "nombre": "HAKIMI",       "pais": "MAR"},
+            {"numero": 3024, "nombre": "VAN DIJK",     "pais": "NED"},
+            {"numero": 3025, "nombre": "NUNO MENDES",  "pais": "POR"},
+            {"numero": 3026, "nombre": "HUIJSEN",      "pais": "ESP"},
         ],
     },
     "midfield_maestros": {
         "category": "Midfield Maestro", "rarity": "Rare",
         "items": [
-            {"numero": 568, "nombre": "FERNÁNDEZ",    "pais": "ARG"},
-            {"numero": 569, "nombre": "DE BRUYNE",    "pais": "BEL"},
-            {"numero": 570, "nombre": "CASEMIRO",     "pais": "BRA"},
-            {"numero": 571, "nombre": "MODRIC",       "pais": "CRO"},
-            {"numero": 572, "nombre": "CAICEDO",      "pais": "ECU"},
-            {"numero": 573, "nombre": "BELLINGHAM",   "pais": "ENG"},
-            {"numero": 574, "nombre": "TCHOUAMÉNI",   "pais": "FRA"},
-            {"numero": 575, "nombre": "WIRTZ",        "pais": "GER"},
-            {"numero": 576, "nombre": "AMRABAT",      "pais": "MAR"},
-            {"numero": 577, "nombre": "REIJNDERS",    "pais": "NED"},
-            {"numero": 578, "nombre": "ØDEGAARD",     "pais": "NOR"},
-            {"numero": 579, "nombre": "VITINHA",      "pais": "POR"},
-            {"numero": 580, "nombre": "MCTOMINAY",    "pais": "SCO"},
-            {"numero": 581, "nombre": "RODRI",        "pais": "ESP"},
-            {"numero": 582, "nombre": "PEDRI",        "pais": "ESP"},
-            {"numero": 583, "nombre": "XHAKA",        "pais": "SUI"},
-            {"numero": 584, "nombre": "ADAMS",        "pais": "USA"},
-            {"numero": 585, "nombre": "VALVERDE",     "pais": "URU"},
+            {"numero": 3027, "nombre": "FERNÁNDEZ",    "pais": "ARG"},
+            {"numero": 3028, "nombre": "DE BRUYNE",    "pais": "BEL"},
+            {"numero": 3029, "nombre": "CASEMIRO",     "pais": "BRA"},
+            {"numero": 3030, "nombre": "MODRIC",       "pais": "CRO"},
+            {"numero": 3031, "nombre": "CAICEDO",      "pais": "ECU"},
+            {"numero": 3032, "nombre": "BELLINGHAM",   "pais": "ENG"},
+            {"numero": 3033, "nombre": "TCHOUAMÉNI",   "pais": "FRA"},
+            {"numero": 3034, "nombre": "WIRTZ",        "pais": "GER"},
+            {"numero": 3035, "nombre": "AMRABAT",      "pais": "MAR"},
+            {"numero": 3036, "nombre": "REIJNDERS",    "pais": "NED"},
+            {"numero": 3037, "nombre": "ØDEGAARD",     "pais": "NOR"},
+            {"numero": 3038, "nombre": "VITINHA",      "pais": "POR"},
+            {"numero": 3039, "nombre": "MCTOMINAY",    "pais": "SCO"},
+            {"numero": 3040, "nombre": "RODRI",        "pais": "ESP"},
+            {"numero": 3041, "nombre": "PEDRI",        "pais": "ESP"},
+            {"numero": 3042, "nombre": "XHAKA",        "pais": "SUI"},
+            {"numero": 3043, "nombre": "ADAMS",        "pais": "USA"},
+            {"numero": 3044, "nombre": "VALVERDE",     "pais": "URU"},
         ],
     },
     "goal_machines": {
         "category": "Goal Machine", "rarity": "Rare",
         "items": [
-            {"numero": 586, "nombre": "ALVAREZ",     "pais": "ARG"},
-            {"numero": 587, "nombre": "LUKAKU",      "pais": "BEL"},
-            {"numero": 588, "nombre": "RAPHINHA",    "pais": "BRA"},
-            {"numero": 589, "nombre": "DAVID",       "pais": "CAN"},
-            {"numero": 590, "nombre": "DIAZ",        "pais": "COL"},
-            {"numero": 591, "nombre": "KRAMARIĆ",    "pais": "CRO"},
-            {"numero": 592, "nombre": "VALENCIA",    "pais": "ECU"},
-            {"numero": 593, "nombre": "MARMOUSH",    "pais": "EGY"},
-            {"numero": 594, "nombre": "RASHFORD",    "pais": "ENG"},
-            {"numero": 595, "nombre": "KOLO MUANI",  "pais": "FRA"},
-            {"numero": 596, "nombre": "HAVERTZ",     "pais": "GER"},
-            {"numero": 597, "nombre": "HALLER",      "pais": "CIV"},
-            {"numero": 598, "nombre": "JIMÉNEZ",     "pais": "MEX"},
-            {"numero": 599, "nombre": "EN-NESYRI",   "pais": "MAR"},
-            {"numero": 600, "nombre": "GAKPO",       "pais": "NED"},
-            {"numero": 601, "nombre": "WOOD",        "pais": "NZL"},
-            {"numero": 602, "nombre": "SØRLOTH",     "pais": "NOR"},
-            {"numero": 603, "nombre": "JACKSON",     "pais": "SEN"},
-            {"numero": 604, "nombre": "OYARZABAL",   "pais": "ESP"},
-            {"numero": 605, "nombre": "EMBOLO",      "pais": "SUI"},
-            {"numero": 606, "nombre": "PULISIC",     "pais": "USA"},
-            {"numero": 607, "nombre": "NÚÑEZ",       "pais": "URU"},
+            {"numero": 3045, "nombre": "ALVAREZ",     "pais": "ARG"},
+            {"numero": 3046, "nombre": "LUKAKU",      "pais": "BEL"},
+            {"numero": 3047, "nombre": "RAPHINHA",    "pais": "BRA"},
+            {"numero": 3048, "nombre": "DAVID",       "pais": "CAN"},
+            {"numero": 3049, "nombre": "DIAZ",        "pais": "COL"},
+            {"numero": 3050, "nombre": "KRAMARIĆ",    "pais": "CRO"},
+            {"numero": 3051, "nombre": "VALENCIA",    "pais": "ECU"},
+            {"numero": 3052, "nombre": "MARMOUSH",    "pais": "EGY"},
+            {"numero": 3053, "nombre": "RASHFORD",    "pais": "ENG"},
+            {"numero": 3054, "nombre": "KOLO MUANI",  "pais": "FRA"},
+            {"numero": 3055, "nombre": "HAVERTZ",     "pais": "GER"},
+            {"numero": 3056, "nombre": "HALLER",      "pais": "CIV"},
+            {"numero": 3057, "nombre": "JIMÉNEZ",     "pais": "MEX"},
+            {"numero": 3058, "nombre": "EN-NESYRI",   "pais": "MAR"},
+            {"numero": 3059, "nombre": "GAKPO",       "pais": "NED"},
+            {"numero": 3060, "nombre": "WOOD",        "pais": "NZL"},
+            {"numero": 3061, "nombre": "SØRLOTH",     "pais": "NOR"},
+            {"numero": 3062, "nombre": "JACKSON",     "pais": "SEN"},
+            {"numero": 3063, "nombre": "OYARZABAL",   "pais": "ESP"},
+            {"numero": 3064, "nombre": "EMBOLO",      "pais": "SUI"},
+            {"numero": 3065, "nombre": "PULISIC",     "pais": "USA"},
+            {"numero": 3066, "nombre": "NÚÑEZ",       "pais": "URU"},
         ],
     },
     "master_rookies": {
         "category": "Master Rookie", "rarity": "Rare",
         "items": [
-            {"numero": 608, "nombre": "PAZ",          "pais": "ARG"},
-            {"numero": 609, "nombre": "MASTANTUONO", "pais": "ARG"},
-            {"numero": 610, "nombre": "DEBAST",      "pais": "BEL"},
-            {"numero": 611, "nombre": "WESLEY",      "pais": "BRA"},
-            {"numero": 612, "nombre": "ESTÊVÃO",     "pais": "BRA"},
-            {"numero": 613, "nombre": "SUCIC",       "pais": "CRO"},
-            {"numero": 614, "nombre": "PAEZ",        "pais": "ECU"},
-            {"numero": 615, "nombre": "ROGERS",      "pais": "ENG"},
-            {"numero": 616, "nombre": "DOUÉ",        "pais": "FRA"},
-            {"numero": 617, "nombre": "BARCOLA",     "pais": "FRA"},
-            {"numero": 618, "nombre": "WOLTEMADE",   "pais": "GER"},
-            {"numero": 619, "nombre": "SIMONS",      "pais": "NED"},
-            {"numero": 620, "nombre": "SCHJELDERUP", "pais": "NOR"},
-            {"numero": 621, "nombre": "GOMEZ",       "pais": "PAR"},
-            {"numero": 622, "nombre": "JOÃO NEVES",  "pais": "POR"},
-            {"numero": 623, "nombre": "CUBARSI",     "pais": "ESP"},
+            {"numero": 3067, "nombre": "PAZ",          "pais": "ARG"},
+            {"numero": 3068, "nombre": "MASTANTUONO", "pais": "ARG"},
+            {"numero": 3069, "nombre": "DEBAST",      "pais": "BEL"},
+            {"numero": 3070, "nombre": "WESLEY",      "pais": "BRA"},
+            {"numero": 3071, "nombre": "ESTÊVÃO",     "pais": "BRA"},
+            {"numero": 3072, "nombre": "SUCIC",       "pais": "CRO"},
+            {"numero": 3073, "nombre": "PAEZ",        "pais": "ECU"},
+            {"numero": 3074, "nombre": "ROGERS",      "pais": "ENG"},
+            {"numero": 3075, "nombre": "DOUÉ",        "pais": "FRA"},
+            {"numero": 3076, "nombre": "BARCOLA",     "pais": "FRA"},
+            {"numero": 3077, "nombre": "WOLTEMADE",   "pais": "GER"},
+            {"numero": 3078, "nombre": "SIMONS",      "pais": "NED"},
+            {"numero": 3079, "nombre": "SCHJELDERUP", "pais": "NOR"},
+            {"numero": 3080, "nombre": "GOMEZ",       "pais": "PAR"},
+            {"numero": 3081, "nombre": "JOÃO NEVES",  "pais": "POR"},
+            {"numero": 3082, "nombre": "CUBARSI",     "pais": "ESP"},
         ],
     },
 }
@@ -909,18 +917,18 @@ _OTROS = {
     "oficiales": {
         "category": "Official", "rarity": "Rare",
         "items": [
-            {"numero": 624, "nombre": "OFFICIAL EMBLEM"},
-            {"numero": 625, "nombre": "OFFICIAL MASCOT-MAPLE"},
-            {"numero": 626, "nombre": "OFFICIAL MASCOT-CLUTCH"},
-            {"numero": 627, "nombre": "OFFICIAL MASCOT-ZAYU"},
+            {"numero": 3083, "nombre": "OFFICIAL EMBLEM"},
+            {"numero": 3084, "nombre": "OFFICIAL MASCOT-MAPLE"},
+            {"numero": 3085, "nombre": "OFFICIAL MASCOT-CLUTCH"},
+            {"numero": 3086, "nombre": "OFFICIAL MASCOT-ZAYU"},
         ]
     },
     "eternos_22": {
         "category": "Eternal", "rarity": "Rare",
         "items": [
-            {"numero": 628, "nombre": "DEFENDERS"},
-            {"numero": 629, "nombre": "MIDFIELDERS"},
-            {"numero": 630, "nombre": "FORWARDS"},
+            {"numero": 3087, "nombre": "DEFENDERS"},
+            {"numero": 3088, "nombre": "MIDFIELDERS"},
+            {"numero": 3089, "nombre": "FORWARDS"},
         ]
     },
 }
@@ -982,25 +990,8 @@ def sync():
                                  category=cat_data["category"],
                                  rarity=cat_data["rarity"])
 
-        # 2. Cartas por equipo
-        for team_name, team_data in _EQUIPOS.items():
-            for item in team_data["items"]:
-                tipo = item.get("tipo")
-                nombre = item["nombre"]
-                if nombre == _TEAM_CREST:
-                    category, rarity = "Team Crest", "Rare"
-                elif tipo == "IC":
-                    category, rarity = "Icon Card", "Legendary"
-                elif tipo == "FF":
-                    category, rarity = "Fan Favourite", "Epic"
-                else:
-                    category, rarity = "Player", "Common"
-                added += _upsert(db, Sticker, rarity_map,
-                                 panini_code=item["numero"],
-                                 name=nombre,
-                                 team=team_name,
-                                 category=category,
-                                 rarity=rarity)
+        # 2. Cartas por equipo — delegado a lambda_sync_stickers.py (códigos oficiales 160-2014)
+        #    _EQUIPOS se mantiene en el archivo como referencia pero no se siembra aquí.
 
         # 3. Otros items
         for _cat_key, cat_data in _OTROS.items():
