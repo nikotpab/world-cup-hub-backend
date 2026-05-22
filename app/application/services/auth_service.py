@@ -1,10 +1,12 @@
-import smtplib
 import secrets
-import string
 import uuid
 import jwt
 import os
-from email.mime.text import MIMEText
+from typing import Dict, Any
+from app.application.interfaces.user_repository import IUserRepository
+from passlib.hash import argon2
+from datetime import datetime, timedelta, timezone
+from flask import current_app
 
 
 class _UnverifiedError(ValueError):
@@ -12,12 +14,7 @@ class _UnverifiedError(ValueError):
     def __init__(self, email: str):
         super().__init__("Por favor verifica tu correo electrónico antes de iniciar sesión.")
         self.email = email
-from email.mime.multipart import MIMEMultipart
-from typing import Dict, Any
-from app.application.interfaces.user_repository import IUserRepository
-from passlib.hash import argon2
-from datetime import datetime, timedelta, timezone
-from flask import current_app
+
 
 class AuthService:
     def __init__(self, user_repository: IUserRepository):
@@ -26,8 +23,9 @@ class AuthService:
     def _generate_verification_code(self) -> str:
         return f"{secrets.randbelow(1_000_000):06d}"
 
-    def _send_verification_email(self, email: str, code: str):
+    def _send_verification_email(self, email: str, code: str) -> bool:
         from app.infrastructure.external.email_service import SmtpEmailService
+        from app.infrastructure.logger import app_logger
         subject = "Verifica tu cuenta - Mundial 2026 Hub"
         body = f"""
         <html>
@@ -40,9 +38,10 @@ class AuthService:
         """
         try:
             SmtpEmailService().send_email(email, subject, body)
+            return True
         except Exception as e:
-            from app.infrastructure.logger import app_logger
             app_logger.error({"event": "email_verification_error", "details": str(e)})
+            return False
 
     def register(self, data: dict) -> Dict[str, Any]:
         email = data.get("email")
@@ -67,15 +66,16 @@ class AuthService:
             "lastName": last_name,
             "verified": False,
             "verificationCode": verification_code,
-            "roleId": 2  # Asumiendo rol de aficionado por defecto
+            "roleId": 2
         }
 
         self.user_repository.save(user_data)
-        self._send_verification_email(email, verification_code)
+        email_sent = self._send_verification_email(email, verification_code)
 
         return {
             "success": True,
-            "message": "Usuario registrado. Revisa tu correo para el código de verificación."
+            "message": "Usuario registrado. Revisa tu correo para el código de verificación.",
+            "emailSent": email_sent,
         }
 
     def verify_email(self, data: dict) -> Dict[str, Any]:
@@ -95,7 +95,6 @@ class AuthService:
         if user.get("verificationCode") != code:
             raise ValueError("Código de verificación inválido")
 
-        # Update user
         user["verified"] = True
         user["verificationCode"] = None
         self.user_repository.save(user)
@@ -116,9 +115,13 @@ class AuthService:
         new_code = self._generate_verification_code()
         user["verificationCode"] = new_code
         self.user_repository.save(user)
-        self._send_verification_email(email, new_code)
+        email_sent = self._send_verification_email(email, new_code)
 
-        return {"success": True, "message": "Código reenviado. Revisa tu correo."}
+        return {
+            "success": True,
+            "message": "Código reenviado. Revisa tu correo." if email_sent else "No se pudo enviar el correo. Verifica la configuración SMTP o usa el endpoint de diagnóstico.",
+            "emailSent": email_sent,
+        }
 
     def login(self, data: dict) -> Dict[str, Any]:
         email = data.get("email")
@@ -139,13 +142,11 @@ class AuthService:
             raise ValueError(_ERR_INVALID_CREDENTIALS)
 
         if not user.get("verified"):
-            # Usamos una excepción marcada para que el API devuelva ERR_UNVERIFIED
             raise _UnverifiedError(email)
 
         if user.get("accountStatus") != 'activo':
             raise ValueError("Tu cuenta está suspendida.")
 
-        # Generar JWT Token
         secret_key = current_app.config.get('JWT_SECRET_KEY') or current_app.config.get('SECRET_KEY') or 'secret'
         payload = {
             "jti": str(uuid.uuid4()),

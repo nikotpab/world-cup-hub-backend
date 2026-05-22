@@ -1,50 +1,59 @@
 import os
-import ssl
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
 from app.infrastructure.logger import app_logger
 
 
-class SmtpEmailService:
+class SesEmailService:
+    """
+    Sends transactional email via AWS SES (boto3).
+    In production (ECS) credentials come from the task IAM role — no keys needed.
+    In local dev boto3 picks up ~/.aws/credentials automatically.
+    """
+
     def __init__(self):
-        self.smtp_server   = os.environ.get('SMTP_SERVER', 'smtp.hostinger.com')
-        self.smtp_port     = int(os.environ.get('SMTP_PORT', '465'))
-        self.smtp_email    = os.environ.get('SMTP_EMAIL')
-        self.smtp_password = os.environ.get('SMTP_PASSWORD')
+        self.from_email = os.environ.get('SES_FROM_EMAIL', 'informacion@worldcuphub.online')
+        self.aws_region = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
 
-        if not self.smtp_email or not self.smtp_password:
-            app_logger.warning({
-                "event": "smtp_init_warning",
-                "message": "SMTP credentials not configured. Simulating email sends.",
-            })
-
-    def send_email(self, to_email: str, subject: str, html_content: str):
-        if not self.smtp_email or not self.smtp_password:
-            app_logger.info({"event": "email_simulated", "to": to_email, "subject": subject})
-            return {"status": "simulated", "message": "Email simulated (SMTP not configured)"}
-
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = self.smtp_email
-        msg["To"]      = to_email
-        msg.attach(MIMEText(html_content, "html"))
-
+    def send_email(self, to_email: str, subject: str, html_content: str) -> dict:
         try:
-            context = ssl.create_default_context()
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
-            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context) as server:
-                server.login(self.smtp_email, self.smtp_password)
-                server.sendmail(self.smtp_email, to_email, msg.as_string())
+            client = boto3.client('ses', region_name=self.aws_region)
+            response = client.send_email(
+                Source=self.from_email,
+                Destination={'ToAddresses': [to_email]},
+                Message={
+                    'Subject': {'Data': subject, 'Charset': 'UTF-8'},
+                    'Body': {'Html': {'Data': html_content, 'Charset': 'UTF-8'}},
+                },
+            )
+            msg_id = response['MessageId']
+            app_logger.info({
+                "event": "email_sent",
+                "to": to_email,
+                "subject": subject,
+                "message_id": msg_id,
+            })
+            return {"status": "success", "message_id": msg_id}
 
-            app_logger.info({"event": "email_sent", "to": to_email, "subject": subject})
-            return {"status": "success"}
+        except NoCredentialsError:
+            app_logger.warning({
+                "event": "ses_no_credentials",
+                "message": "AWS credentials not found. Configure ~/.aws or set AWS_ACCESS_KEY_ID env var.",
+                "to": to_email,
+            })
+            raise ValueError("SES sin credenciales AWS. Configura ~/.aws o AWS_ACCESS_KEY_ID.")
+
+        except ClientError as e:
+            code = e.response['Error']['Code']
+            msg = e.response['Error']['Message']
+            app_logger.error({"event": "ses_send_error", "code": code, "details": msg, "to": to_email})
+            raise ValueError(f"Error SES ({code}): {msg}")
 
         except Exception as e:
-            app_logger.error({"event": "email_send_error", "details": str(e)})
-            raise ValueError(f"Error al enviar email via SMTP: {str(e)}")
+            app_logger.error({"event": "ses_send_error", "details": str(e), "to": to_email})
+            raise ValueError(f"Error inesperado al enviar email: {e}")
 
 
-# Alias for backwards compatibility
-SendGridEmailService = SmtpEmailService
+# Aliases — mantienen compatibilidad con imports existentes en auth_service y notification_service
+SmtpEmailService = SesEmailService
+SendGridEmailService = SesEmailService
