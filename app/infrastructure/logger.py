@@ -34,6 +34,54 @@ class FilterSecrets(logging.Filter):
             }
         return super().filter(record)
 
+class DatabaseAuditHandler(logging.Handler):
+    """ Handler que captura eventos de auditoría y los persiste en la BD """
+    def emit(self, record):
+        if not isinstance(record.msg, dict) or not record.msg.get("audit"):
+            return
+        try:
+            from flask import current_app
+            if not current_app:
+                return
+            from app.domain.models.audit import Audit
+            from app.infrastructure.database import db
+            from sqlalchemy.orm import sessionmaker
+            
+            payload = record.msg
+            correlation_id = payload.get("correlation_id") or payload.get("correlationId")
+            affected_entity = payload.get("entity") or payload.get("event", "unknown").split("_")[0]
+            action = payload.get("event") or record.levelname
+            result = "SUCCESS" if record.levelname == "INFO" else "ERROR"
+            
+            # Redactar llaves sensibles
+            clean_payload = {
+                k: '***REDACTED***' if k in FilterSecrets._SENSITIVE_KEYS else v
+                for k, v in payload.items() if k != "audit"
+            }
+            
+            audit_entry = Audit(
+                correlationId=correlation_id,
+                payload=json.dumps(clean_payload),
+                affectedEntity=affected_entity,
+                action=action,
+                result=result
+            )
+            
+            # Usar una sesión independiente para evitar interferir con la transacción de la petición actual
+            Session = sessionmaker(bind=db.engine)
+            session = Session()
+            try:
+                session.add(audit_entry)
+                session.commit()
+            except Exception:
+                session.rollback()
+                raise
+            finally:
+                session.close()
+        except Exception:
+            # Nunca lanzar excepciones desde el logger para no bloquear hilos principales
+            pass
+
 def setup_logger():
     logger = logging.getLogger("world_cup_hub")
     logger.setLevel(logging.INFO)
@@ -54,6 +102,11 @@ def setup_logger():
         logger.handlers.clear()
         
     logger.addHandler(handler)
+    
+    # Registrar el handler de base de datos para persistencia de auditoría
+    db_handler = DatabaseAuditHandler()
+    logger.addHandler(db_handler)
+    
     return logger
 
 app_logger = setup_logger()

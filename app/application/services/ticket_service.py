@@ -9,7 +9,7 @@ from app.application.dtos.ticket_dto import (
 from app.infrastructure.logger import app_logger
 
 RESERVATION_TTL_MINUTES = 10   # 10 min → libera el cupo si no se paga
-MAX_PURCHASES_PER_DAY  = 5
+MAX_PURCHASES_PER_DAY  = 4
 MAX_TRANSFERS_PER_DAY  = 3
 
 

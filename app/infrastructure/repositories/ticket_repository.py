@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 from app.application.interfaces.ticket_repository import ITicketRepository
 from app.domain.models.ticket import Ticket
@@ -79,7 +79,8 @@ class SqlAlchemyTicketRepository(ITicketRepository):
         return {"idPayment": payment.idPayment, "status": payment.status}
 
     def count_purchases_today(self, user_id: int) -> int:
-        today = datetime.now(timezone.utc).date()
+        tz_utc_minus_5 = timezone(timedelta(hours=-5))
+        today = datetime.now(tz_utc_minus_5).date()
         return (
             Ticket.query
             .filter(Ticket.userId == user_id, Ticket.status == 'Pagada',
@@ -88,7 +89,8 @@ class SqlAlchemyTicketRepository(ITicketRepository):
         )
 
     def count_transfers_today(self, user_id: int) -> int:
-        today = datetime.now(timezone.utc).date()
+        tz_utc_minus_5 = timezone(timedelta(hours=-5))
+        today = datetime.now(tz_utc_minus_5).date()
         return (
             Transfer.query
             .filter(Transfer.fromUserId == user_id,
