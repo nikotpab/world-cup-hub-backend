@@ -37,7 +37,7 @@ class AlbumService:
         if not album:
             album = Album(idUser=user_id, packBalance=self.DAILY_FREE_PACKS)
             db.session.add(album)
-            album.lastRewardDate = date.today()
+            album.lastRewardDate = datetime.now(_UTC_MINUS_5).date()
             db.session.commit()
         else:
             self._auto_claim_daily(album)
@@ -156,10 +156,10 @@ class AlbumService:
             sticker_album.c.id_album == album.idAlbum
         ).scalar() or 0
 
-        # Límite diario: 3 sobres por día, usando hora UTC del SERVIDOR
-        today_utc_start = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        # Límite diario: 3 sobres por día, usando hora local (UTC-5)
+        local_now = datetime.now(_UTC_MINUS_5)
+        local_today_start = datetime(local_now.year, local_now.month, local_now.day, 0, 0, 0, tzinfo=_UTC_MINUS_5)
+        today_utc_start = local_today_start.astimezone(timezone.utc).replace(tzinfo=None)
         packs_today = Pack.query.filter(
             Pack.idUser == user_id,
             Pack.openedAt >= today_utc_start

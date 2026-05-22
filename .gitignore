@@ -66,6 +66,10 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
+# Build artifacts
+lambda.zip
+output_*.json
+
 # Local SQLite database
 instance/
 

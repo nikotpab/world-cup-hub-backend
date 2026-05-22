@@ -65,10 +65,26 @@ def get_user_notifications(user_id):
                 "title": n.title,
                 "message": n.message,
                 "notifType": n.notifType,
+                "status": n.status or 'sent',
                 "createdAt": n.createdAt.isoformat() if n.createdAt else None
             })
         return jsonify(results), 200
     except Exception as exc:
+        return jsonify({"error": _ERR_DB, "details": str(exc)}), 500
+
+
+@user_bp.route('/users/<int:user_id>/notifications/read', methods=['PUT'])
+@require_auth
+def mark_notifications_read(user_id):
+    if not _is_self_or_admin(user_id):
+        return jsonify({"error": _ERR_FORBIDDEN}), 403
+    from app.domain.models.notification import Notification
+    try:
+        Notification.query.filter_by(userId=user_id, status='sent').update({Notification.status: 'read'})
+        db.session.commit()
+        return jsonify({"ok": True}), 200
+    except Exception as exc:
+        db.session.rollback()
         return jsonify({"error": _ERR_DB, "details": str(exc)}), 500
 
 
