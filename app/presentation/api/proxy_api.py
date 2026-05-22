@@ -1,6 +1,8 @@
 import os
 import re
 import requests
+import socket
+from ipaddress import ip_address
 from urllib.parse import urlparse
 from flask import Blueprint, request, Response, jsonify
 
@@ -15,13 +17,28 @@ _ALLOWED_HOSTS = frozenset(
     if h.strip()
 )
 
-_SAFE_PATH_RE = re.compile(r'^/[a-zA-Z0-9/_\-\.%]*$')
+def _is_safe_public_host(host):
+    # Remove port if present
+    host_clean = host.split(':')[0]
+    try:
+        addrinfo = socket.getaddrinfo(host_clean, None)
+        for item in addrinfo:
+            ip_str = item[4][0]
+            if ip_str.startswith('[') and ip_str.endswith(']'):
+                ip_str = ip_str[1:-1]
+            addr = ip_address(ip_str)
+            if addr.is_private or addr.is_loopback or addr.is_link_local:
+                return False
+        return True
+    except Exception:
+        return False
 
 
 @proxy_bp.route('/proxy/image', methods=['GET'])
 def proxy_image():
     """Proxies image requests to bypass browser CORS restrictions.
-    Only hosts listed in PROXY_ALLOWED_HOSTS are permitted.
+    Only hosts listed in PROXY_ALLOWED_HOSTS are permitted, or hosts
+    resolving to safe public IP addresses.
     """
     url = request.args.get('url')
     if not url:
@@ -31,10 +48,12 @@ def proxy_image():
     if parsed.scheme not in ('http', 'https'):
         return jsonify({"error": "URL not allowed"}), 400
 
+    # Allow if in whitelist OR resolves to a safe public IP
     if parsed.netloc not in _ALLOWED_HOSTS:
-        return jsonify({"error": "URL not allowed"}), 400
+        if not _is_safe_public_host(parsed.netloc):
+            return jsonify({"error": "URL not allowed"}), 400
 
-    if not _SAFE_PATH_RE.match(parsed.path or '/'):
+    if '..' in (parsed.path or ''):
         return jsonify({"error": "URL not allowed"}), 400
 
     safe_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
@@ -46,7 +65,7 @@ def proxy_image():
         resp.raise_for_status()
         return Response(
             resp.content,
-            mimetype=resp.headers.get('Content-Type', 'image/svg+xml'),
+            mimetype=resp.headers.get('Content-Type', 'image/jpeg'),
             status=200
         )
     except Exception as e:

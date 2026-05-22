@@ -32,6 +32,8 @@ class SmtpEmailService:
 
         try:
             context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
             with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context) as server:
                 server.login(self.smtp_email, self.smtp_password)
                 server.sendmail(self.smtp_email, to_email, msg.as_string())
