@@ -40,6 +40,27 @@ def broadcast_news():
     except ValidationError as e:
         return jsonify({"error": "ERR_VALIDATION", "details": e.errors()}), 400
 
+@admin_bp.route('/admin/email-test', methods=['POST'])
+@require_role([1])
+def test_email():
+    """Diagnóstico: verifica que la conexión SMTP funcione correctamente."""
+    data = request.get_json() or {}
+    to_email = data.get('to', '').strip()
+    if not to_email:
+        return jsonify({"error": "ERR_BAD_REQUEST", "message": "El campo 'to' es requerido"}), 400
+    from app.infrastructure.external.email_service import SmtpEmailService
+    try:
+        svc = SmtpEmailService()
+        result = svc.send_email(
+            to_email,
+            "Prueba SMTP - World Cup Hub",
+            "<p>La conexion SMTP esta configurada correctamente.</p>",
+        )
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": "ERR_SMTP", "message": str(e)}), 500
+
+
 @admin_bp.route('/admin/settings/datasource', methods=['PUT'])
 @require_role([1])
 def set_data_source():
