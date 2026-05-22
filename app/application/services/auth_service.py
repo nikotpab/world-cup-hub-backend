@@ -27,26 +27,8 @@ class AuthService:
         return f"{secrets.randbelow(1_000_000):06d}"
 
     def _send_verification_email(self, email: str, code: str):
-        smtp_server = os.environ.get('SMTP_SERVER')
-        smtp_port = os.environ.get('SMTP_PORT')
-        sender_email = os.environ.get('SMTP_EMAIL')
-        sender_password = os.environ.get('SMTP_PASSWORD')
-
-        if not all([smtp_server, smtp_port, sender_email, sender_password]):
-            from app.infrastructure.logger import app_logger
-            app_logger.warning({"event": "smtp_missing_config", "message": "Configuración SMTP incompleta en variables de entorno. Simulando envío."})
-            return
-
-        try:
-            smtp_port = int(smtp_port)
-        except ValueError:
-            return
-
-        msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = email
-        msg['Subject'] = "Verifica tu cuenta - Mundial 2026 Hub"
-
+        from app.infrastructure.external.email_service import SmtpEmailService
+        subject = "Verifica tu cuenta - Mundial 2026 Hub"
         body = f"""
         <html>
             <body>
@@ -56,12 +38,8 @@ class AuthService:
             </body>
         </html>
         """
-        msg.attach(MIMEText(body, 'html'))
-
         try:
-            with smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10) as server:
-                server.login(sender_email, sender_password)
-                server.send_message(msg)
+            SmtpEmailService().send_email(email, subject, body)
         except Exception as e:
             from app.infrastructure.logger import app_logger
             app_logger.error({"event": "email_verification_error", "details": str(e)})
