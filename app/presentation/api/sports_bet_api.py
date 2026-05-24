@@ -42,8 +42,8 @@ def _get_cached_odds(match_id: int) -> Optional[dict]:
         raw = redis_client.get(f"betting:odds:{match_id}")
         if raw:
             return json.loads(raw).get("odds")
-    except Exception:
-        pass
+    except Exception as _e:
+        app_logger.debug({"event": "odds_cache_get_failed", "details": str(_e)})
     return None
 
 

@@ -78,9 +78,9 @@ class DatabaseAuditHandler(logging.Handler):
                 raise
             finally:
                 session.close()
-        except Exception:
-            # Nunca lanzar excepciones desde el logger para no bloquear hilos principales
-            pass
+        except Exception as _e:
+            import logging as _stdlib_logging
+            _stdlib_logging.getLogger(__name__).debug("Audit log failed: %s", _e)
 
 def setup_logger():
     logger = logging.getLogger("world_cup_hub")

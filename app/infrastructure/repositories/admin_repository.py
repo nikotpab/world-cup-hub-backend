@@ -1,5 +1,8 @@
+import logging
 from typing import Optional, List, Dict, Any
 from app.application.interfaces.admin_repository import IAdminRepository
+
+_log = logging.getLogger(__name__)
 from app.domain.models.user import User
 from app.domain.models.event import Event
 from app.domain.models.notification import Notification
@@ -33,8 +36,8 @@ class SqlAlchemyAdminRepository(IAdminRepository):
                         "date": a.createdAt.isoformat() if a.createdAt else None,
                         "description": f"{a.action} on {a.affectedEntity} (Result: {a.result})"
                     })
-            except Exception:
-                pass
+            except Exception as _e:
+                _log.debug({"event": "timeline_entry_failed", "details": str(_e)})
         return timeline
 
     def generate_compliance_report(self) -> List[Dict[str, Any]]:

@@ -4,11 +4,14 @@ Cache con dos niveles:
   2. In-process dict  — fallback automático cuando Redis no está disponible.
      Respeta TTL via time.monotonic() para no servir datos infinitamente.
 """
+import logging
 import os
 import time
 import threading
 
 import redis
+
+_log = logging.getLogger(__name__)
 
 _mem: dict = {}          # {key: (value_str, expires_monotonic_or_None)}
 _mem_lock = threading.Lock()
@@ -43,7 +46,8 @@ class RedisCache:
                 socket_timeout=2,
             )
             self.client.ping()          # falla rápido si Redis no responde
-        except Exception:
+        except Exception as _e:
+            _log.debug("Redis unavailable, falling back to in-memory cache: %s", _e)
             self.client = None          # caeremos al fallback en memoria
 
     def get(self, key: str):
@@ -52,8 +56,8 @@ class RedisCache:
                 result = self.client.get(key)
                 if result is not None:
                     return result
-            except Exception:
-                pass                    # Redis caído → fallback
+            except Exception as _e:
+                _log.debug("Redis get failed, using in-memory fallback: %s", _e)
         return _mem_get(key)
 
     def set(self, key: str, value: str, ex: int = None):
@@ -61,16 +65,16 @@ class RedisCache:
             try:
                 self.client.set(key, value, ex=ex)
                 return
-            except Exception:
-                pass                    # Redis caído → fallback
+            except Exception as _e:
+                _log.debug("Redis set failed, using in-memory fallback: %s", _e)
         _mem_set(key, value, ex)
 
     def delete(self, key: str):
         if self.client:
             try:
                 self.client.delete(key)
-            except Exception:
-                pass
+            except Exception as _e:
+                _log.debug("Redis delete failed: %s", _e)
         with _mem_lock:
             _mem.pop(key, None)
 

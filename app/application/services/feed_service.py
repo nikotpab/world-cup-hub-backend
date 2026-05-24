@@ -1,5 +1,8 @@
+import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+
+_log = logging.getLogger(__name__)
 from app.infrastructure.database import db
 from app.domain.models.post import Post
 from app.domain.models.post_image import PostImage
@@ -124,8 +127,8 @@ class FeedService:
                     reference_type="post",
                     channels=["push"],
                 )
-            except Exception:
-                pass
+            except Exception as _e:
+                _log.debug({"event": "like_notification_failed", "details": str(_e)})
 
         return {"liked": liked, "likeCount": count}
 
@@ -184,8 +187,8 @@ class FeedService:
                         reference_type="post",
                         channels=["push"],
                     )
-        except Exception:
-            pass
+        except Exception as _e:
+            _log.debug({"event": "comment_notification_failed", "details": str(_e)})
 
         return _comment_dict(c, user_id)
 
