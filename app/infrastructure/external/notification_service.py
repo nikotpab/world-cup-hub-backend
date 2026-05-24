@@ -185,5 +185,13 @@ class NotificationService:
             **kwargs,
         )
 
+    def broadcast_to_topic(self, topic: str, data: dict = None, title: str = None, body: str = None) -> None:
+        """Envía un mensaje FCM a un tema (topic)."""
+        try:
+            from app.infrastructure.external._fcm import send_to_topic
+            send_to_topic(topic, data=data, title=title, body=body)
+        except Exception as e:
+            app_logger.warning({"event": "fcm_topic_broadcast_failed", "topic": topic, "details": str(e)})
+
 
 notification_service = NotificationService()

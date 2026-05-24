@@ -88,6 +88,21 @@ class FeedService:
         post.content = content.strip()
         db.session.commit()
         db.session.refresh(post)
+
+        # Broadcast edit event in real-time
+        try:
+            from app.infrastructure.external.notification_service import notification_service
+            notification_service.broadcast_to_topic(
+                topic="feed",
+                data={
+                    "notif_type": "post_edited",
+                    "post_id": post_id,
+                    "content": post.content
+                }
+            )
+        except Exception as _e:
+            _log.debug({"event": "feed_broadcast_failed", "details": str(_e)})
+
         return _post_dict(post, user_id)
 
     def delete_post(self, post_id: int, user_id: int) -> None:
@@ -98,6 +113,19 @@ class FeedService:
             raise PermissionError("No puedes eliminar esta publicación.")
         db.session.delete(post)
         db.session.commit()
+
+        # Broadcast delete event in real-time
+        try:
+            from app.infrastructure.external.notification_service import notification_service
+            notification_service.broadcast_to_topic(
+                topic="feed",
+                data={
+                    "notif_type": "post_deleted",
+                    "post_id": post_id
+                }
+            )
+        except Exception as _e:
+            _log.debug({"event": "feed_broadcast_failed", "details": str(_e)})
 
     def toggle_like(self, post_id: int, user_id: int) -> Dict:
         post = Post.query.get(post_id)

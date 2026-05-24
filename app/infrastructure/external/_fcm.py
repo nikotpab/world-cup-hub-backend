@@ -49,3 +49,20 @@ def send_push(token: str, title: str, body: str, data: dict = None) -> None:
         token=token,
     )
     messaging.send(message, app=app)
+
+
+def send_to_topic(topic: str, data: dict = None, title: str = None, body: str = None) -> None:
+    """Send a message/notification to an FCM topic. Silently ignores if FCM is not configured."""
+    app = _get_app()
+    if app is None:
+        return
+
+    from firebase_admin import messaging
+    str_data = {k: str(v) for k, v in (data or {}).items()}
+    notification = messaging.Notification(title=title, body=body) if (title or body) else None
+    message = messaging.Message(
+        notification=notification,
+        data=str_data,
+        topic=topic,
+    )
+    messaging.send(message, app=app)
