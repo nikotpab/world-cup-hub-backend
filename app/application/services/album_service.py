@@ -18,33 +18,41 @@ from app.domain.models.promo_code import PromoCode, PromoCodeUsage
 class AlbumService:
     DAILY_FREE_PACKS = 3  # packs regalados cada día automáticamente
 
-    def _auto_claim_daily(self, album: "Album") -> None:
-        """Reclama los sobres diarios automáticamente si no se han reclamado hoy (UTC-5)."""
+    def _auto_claim_daily(self, album: "Album") -> bool:
+        """Reclama los sobres diarios automáticamente si no se han reclamado hoy (UTC-5).
+        Retorna True si se reclamaron sobres, False de lo contrario.
+        """
         today = datetime.now(_UTC_MINUS_5).date()
         if album.lastRewardDate != today:
             album.lastRewardDate = today
             album.packBalance = (album.packBalance or 0) + self.DAILY_FREE_PACKS
+            return True
+        return False
+
+    def get_user_album(self, user_id: int) -> Dict[str, Any]:
+        album = Album.query.filter_by(idUser=user_id).first()
+        send_notif = False
+        if not album:
+            album = Album(idUser=user_id, packBalance=self.DAILY_FREE_PACKS)
+            db.session.add(album)
+            album.lastRewardDate = datetime.now(_UTC_MINUS_5).date()
+            db.session.commit()
+            send_notif = True
+        else:
+            send_notif = self._auto_claim_daily(album)
+            db.session.commit()
+
+        if send_notif:
             try:
                 from app.infrastructure.external.notification_service import notification_service
                 notification_service.notify_user_from_id(
-                    user_id=album.idUser,
+                    user_id=user_id,
                     title="🎁 ¡Nuevos sobres disponibles!",
                     body=f"Tienes {self.DAILY_FREE_PACKS} sobres de láminas listos para abrir. ¡Entra a la app!",
                     notif_type="packs",
                 )
             except Exception as _e:
                 _log.debug({"event": "pack_notification_failed", "details": str(_e)})
-
-    def get_user_album(self, user_id: int) -> Dict[str, Any]:
-        album = Album.query.filter_by(idUser=user_id).first()
-        if not album:
-            album = Album(idUser=user_id, packBalance=self.DAILY_FREE_PACKS)
-            db.session.add(album)
-            album.lastRewardDate = datetime.now(_UTC_MINUS_5).date()
-            db.session.commit()
-        else:
-            self._auto_claim_daily(album)
-            db.session.commit()
             
         all_stickers = album.stickers
             
@@ -508,8 +516,19 @@ class AlbumService:
         completion        = round(total_owned / total_unique * 100, 2) if total_unique else 0
 
         # Auto-claim daily packs (same logic as get_user_album)
-        self._auto_claim_daily(album)
+        send_notif = self._auto_claim_daily(album)
         db.session.commit()
+        if send_notif:
+            try:
+                from app.infrastructure.external.notification_service import notification_service
+                notification_service.notify_user_from_id(
+                    user_id=user_id,
+                    title="🎁 ¡Nuevos sobres disponibles!",
+                    body=f"Tienes {self.DAILY_FREE_PACKS} sobres de láminas listos para abrir. ¡Entra a la app!",
+                    notif_type="packs",
+                )
+            except Exception as _e:
+                _log.debug({"event": "pack_notification_failed", "details": str(_e)})
 
         collections = [
             {

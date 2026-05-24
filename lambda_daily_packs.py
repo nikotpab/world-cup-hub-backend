@@ -31,6 +31,7 @@ def handler(event, context):
         UTC_MINUS_5 = timezone(timedelta(hours=-5))
         today = datetime.now(UTC_MINUS_5).date()
         distributed = 0
+        notified_users = []
 
         users = User.query.filter_by(verified=True, accountStatus='activo').all()
         for user in users:
@@ -43,19 +44,23 @@ def handler(event, context):
                     album.lastRewardDate = today
                     album.packBalance = (album.packBalance or 0) + DAILY_FREE_PACKS
                     distributed += 1
-                    try:
-                        notification_service.notify_user_from_id(
-                            user_id=user.idUser,
-                            title="¡Nuevos sobres disponibles!",
-                            body=f"Tienes {DAILY_FREE_PACKS} sobres listos para abrir. ¡Entra a la app!",
-                            notif_type="packs",
-                        )
-                    except Exception:
-                        pass
+                    notified_users.append(user.idUser)
             except Exception:
                 pass
 
         db.session.commit()
+
+        # Send notifications safely after transaction has committed
+        for user_id in notified_users:
+            try:
+                notification_service.notify_user_from_id(
+                    user_id=user_id,
+                    title="¡Nuevos sobres disponibles!",
+                    body=f"Tienes {DAILY_FREE_PACKS} sobres listos para abrir. ¡Entra a la app!",
+                    notif_type="packs",
+                )
+            except Exception:
+                pass
         logger.info({"event": "daily_packs_distributed", "users": distributed,
                      "packs": DAILY_FREE_PACKS, "date": str(today)})
 
