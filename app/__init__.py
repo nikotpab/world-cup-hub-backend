@@ -51,8 +51,8 @@ def _start_ttl_worker(app):
                     result = TicketService(SqlAlchemyTicketRepository()).expire_reservations()
                     if result.get("expired", 0) > 0:
                         app_logger.info({"event": "ttl_worker_ran", "expired": result["expired"]})
-            except Exception:
-                pass  # No romper el hilo por errores transitorios de BD
+            except Exception as _e:
+                app_logger.warning({"event": "ttl_worker_error", "details": str(_e)})
             time.sleep(60)
 
     t = threading.Thread(target=_run, daemon=True, name="ttl-worker")

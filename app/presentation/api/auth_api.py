@@ -1,5 +1,8 @@
+import logging
 from flask import Blueprint, request, jsonify, current_app
 from app.application.services.auth_service import AuthService, _UnverifiedError
+
+_log = logging.getLogger(__name__)
 from app.infrastructure.repositories.user_repository import SqlAlchemyUserRepository
 
 auth_bp = Blueprint('auth_bp', __name__)
@@ -59,6 +62,6 @@ def logout():
             jti = payload.get('jti')
             if jti:
                 redis_client.set(f"blacklist_{jti}", "1", ex=86400)
-        except Exception:
-            pass
+        except Exception as _e:
+            _log.warning({"event": "jwt_blacklist_failed", "details": str(_e)})
     return jsonify({"ok": True}), 200

@@ -89,8 +89,8 @@ class NewsService:
             raw = redis_client.get(key)
             if raw:
                 return json.loads(raw)
-        except Exception:
-            pass
+        except Exception as _e:
+            app_logger.debug({"event": "news_cache_get_failed", "details": str(_e)})
         return None
 
     def _cache_set(self, articles: list) -> None:
@@ -99,8 +99,8 @@ class NewsService:
             payload = json.dumps(articles)
             redis_client.set(_CACHE_KEY, payload, ex=_CACHE_TTL)
             redis_client.set(f"stale:{_CACHE_KEY}", payload, ex=86400)  # 24h stale
-        except Exception:
-            pass
+        except Exception as _e:
+            app_logger.debug({"event": "news_cache_set_failed", "details": str(_e)})
 
     @staticmethod
     def _mock_articles() -> list:

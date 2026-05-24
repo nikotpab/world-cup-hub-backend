@@ -1,6 +1,9 @@
+import logging
 from typing import Dict, Any, List
 import random
 import random as _random_module
+
+_log = logging.getLogger(__name__)
 from datetime import datetime, date, timezone, timedelta
 
 _rng = _random_module.SystemRandom()
@@ -29,8 +32,8 @@ class AlbumService:
                     body=f"Tienes {self.DAILY_FREE_PACKS} sobres de láminas listos para abrir. ¡Entra a la app!",
                     notif_type="packs",
                 )
-            except Exception:
-                pass
+            except Exception as _e:
+                _log.debug({"event": "pack_notification_failed", "details": str(_e)})
 
     def get_user_album(self, user_id: int) -> Dict[str, Any]:
         album = Album.query.filter_by(idUser=user_id).first()
@@ -333,8 +336,8 @@ class AlbumService:
                         notif_type="album_milestone",
                     )
                     break
-        except Exception:
-            pass
+        except Exception as _e:
+            _log.debug({"event": "milestone_notification_failed", "details": str(_e)})
 
     def _build_section_entry(self, key: str, flags_map: dict) -> dict:
         is_special = key in self._SPECIAL_CATEGORIES
@@ -373,8 +376,8 @@ class AlbumService:
                     mapping[name.upper()] = crest
                 if tla:
                     mapping[tla] = crest
-        except Exception:
-            pass
+        except Exception as _e:
+            _log.debug({"event": "flags_fetch_failed", "details": str(_e)})
 
         # Fallback para los 48 equipos de la Copa Mundial 2026 usando flagcdn
         # Aseguramos que los equipos siempre tengan bandera si falló la API

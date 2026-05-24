@@ -30,16 +30,16 @@ class FootballDataService:
             raw = redis_client.get(key)
             if raw:
                 return json.loads(raw)
-        except Exception:
-            pass
+        except Exception as _e:
+            app_logger.debug({"event": "football_cache_get_failed", "details": str(_e)})
         return None
 
     def _cache_set(self, key: str, value, ttl: int = _CACHE_TTL):
         try:
             from app.infrastructure.cache.redis_client import redis_client
             redis_client.set(key, json.dumps(value), ex=ttl)
-        except Exception:
-            pass
+        except Exception as _e:
+            app_logger.debug({"event": "football_cache_set_failed", "details": str(_e)})
 
     def _cache_key(self, path: str, params: dict = None) -> str:
         suffix = "&".join(f"{k}={v}" for k, v in sorted((params or {}).items()))
@@ -80,8 +80,8 @@ class FootballDataService:
                 data = json.loads(raw)
                 data["note"] = f"{_NOTE_PROVISIONAL} — última actualización pendiente"
                 return data
-        except Exception:
-            pass
+        except Exception as _e:
+            app_logger.debug({"event": "football_stale_cache_failed", "details": str(_e)})
         return None
 
     def _get_with_stale(self, path: str, params: dict = None):
@@ -104,8 +104,8 @@ class FootballDataService:
             try:
                 from app.infrastructure.cache.redis_client import redis_client
                 redis_client.set(f"stale:{cache_key}", json.dumps(data), ex=3600)
-            except Exception:
-                pass
+            except Exception as _e:
+                app_logger.debug({"event": "football_stale_write_failed", "details": str(_e)})
             return data
         except Exception as e:
             app_logger.warning({"event": "football_api_degraded", "details": str(e)})

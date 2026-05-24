@@ -138,8 +138,8 @@ class TicketService:
                     reference_id=ticket_id,
                     reference_type="ticket",
                 )
-            except Exception:
-                pass
+            except Exception as _e:
+                app_logger.debug({"event": "ticket_notification_failed", "details": str(_e)})
 
             return {**TicketResponseDTO(**ticket).model_dump(),
                     "stripe_intent_id": payment_result["intent_id"]}

@@ -165,8 +165,8 @@ class TradeService:
                     reference_id=saved_trade.id,
                     reference_type="trade_proposal",
                 )
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug({"event": "trade_notification_failed", "details": str(_e)})
 
             return TradeResponseDTO.model_validate(saved_trade)
             

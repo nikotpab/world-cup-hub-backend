@@ -1,5 +1,8 @@
+import logging
 from flask import Blueprint, request, jsonify
 from app.application.services.match_service import MatchService
+
+_log = logging.getLogger(__name__)
 from app.infrastructure.repositories.match_repository import SqlAlchemyMatchRepository
 from app.infrastructure.database import db
 from app.domain.models.match import Match
@@ -35,8 +38,8 @@ def _notify_bet_result(entry: dict, match, home: str, away: str) -> None:
             reference_id=match.matchId,
             reference_type="match",
         )
-    except Exception:
-        pass
+    except Exception as _e:
+        _log.debug({"event": "match_result_notification_failed", "details": str(_e)})
 
 match_repo = SqlAlchemyMatchRepository()
 match_service = MatchService(match_repo)

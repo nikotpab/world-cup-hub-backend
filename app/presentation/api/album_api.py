@@ -1,5 +1,8 @@
+import logging
 from flask import Blueprint, request, jsonify, g
 from app.application.services.trade_service import TradeService
+
+_log = logging.getLogger(__name__)
 from app.application.services.album_service import AlbumService
 from app.infrastructure.repositories.trade_repository import SqlAlchemyTradeRepository
 from app.presentation.middlewares.auth import require_auth
@@ -151,8 +154,8 @@ def reject_trade(trade_id):
             reference_id=trade.id,
             reference_type="trade_proposal",
         )
-    except Exception:
-        pass
+    except Exception as _e:
+        _log.debug({"event": "rejection_notification_failed", "details": str(_e)})
 
     return jsonify({"id": trade.id, "status": trade.status}), 200
 
