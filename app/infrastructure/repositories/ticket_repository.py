@@ -79,8 +79,7 @@ class SqlAlchemyTicketRepository(ITicketRepository):
         return {"idPayment": payment.idPayment, "status": payment.status}
 
     def count_purchases_today(self, user_id: int) -> int:
-        tz_utc_minus_5 = timezone(timedelta(hours=-5))
-        today = datetime.now(tz_utc_minus_5).date()
+        today = datetime.now(timezone.utc).date()
         return (
             Ticket.query
             .filter(Ticket.userId == user_id, Ticket.status == 'Pagada',
@@ -89,8 +88,7 @@ class SqlAlchemyTicketRepository(ITicketRepository):
         )
 
     def count_transfers_today(self, user_id: int) -> int:
-        tz_utc_minus_5 = timezone(timedelta(hours=-5))
-        today = datetime.now(tz_utc_minus_5).date()
+        today = datetime.now(timezone.utc).date()
         return (
             Transfer.query
             .filter(Transfer.fromUserId == user_id,
