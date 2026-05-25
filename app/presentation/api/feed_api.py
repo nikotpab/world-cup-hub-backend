@@ -59,8 +59,13 @@ def edit_post(post_id):
 
 @feed_bp.route('/feed/<int:post_id>', methods=['DELETE'])
 def delete_post(post_id):
-    data    = request.get_json() or {}
-    user_id = data.get('userId')
+    user_id = request.args.get('userId') or request.args.get('user_id')
+    if not user_id and request.is_json:
+        try:
+            data = request.get_json() or {}
+            user_id = data.get('userId')
+        except Exception:
+            pass
     if not user_id:
         return jsonify({"error": _ERR_USER_ID_REQUIRED}), 400
     try:
@@ -68,6 +73,7 @@ def delete_post(post_id):
         return jsonify({"ok": True}), 200
     except (ValueError, PermissionError) as e:
         return jsonify({"error": str(e)}), 403
+
 
 
 @feed_bp.route('/feed/<int:post_id>/like', methods=['POST'])
@@ -110,8 +116,13 @@ def add_comment(post_id):
 
 @feed_bp.route('/feed/comments/<int:comment_id>', methods=['DELETE'])
 def delete_comment(comment_id):
-    data    = request.get_json() or {}
-    user_id = data.get('userId')
+    user_id = request.args.get('userId') or request.args.get('user_id')
+    if not user_id and request.is_json:
+        try:
+            data = request.get_json() or {}
+            user_id = data.get('userId')
+        except Exception:
+            pass
     if not user_id:
         return jsonify({"error": _ERR_USER_ID_REQUIRED}), 400
     try:
@@ -119,6 +130,7 @@ def delete_comment(comment_id):
         return jsonify({"ok": True}), 200
     except (ValueError, PermissionError) as e:
         return jsonify({"error": str(e)}), 403
+
 
 
 @feed_bp.route('/feed/comments/<int:comment_id>/like', methods=['POST'])
