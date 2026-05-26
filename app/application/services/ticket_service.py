@@ -8,9 +8,32 @@ from app.application.dtos.ticket_dto import (
 )
 from app.infrastructure.logger import app_logger
 
+
+def _flag_user_for_fraud(user_id: int, reason: str) -> None:
+    try:
+        from app.domain.models.user import User
+        from app.infrastructure.database import db
+        user = User.query.get(user_id)
+        if user and user.accountStatus == 'activo':
+            user.accountStatus = 'flagged'
+            db.session.commit()
+            app_logger.warning({
+                "event": "user_auto_flagged_antifraud",
+                "user_id": user_id,
+                "reason": reason,
+                "audit": True,
+            })
+    except Exception as exc:
+        app_logger.error({"event": "fraud_flag_failed", "user_id": user_id, "details": str(exc)})
+
+
 RESERVATION_TTL_MINUTES = 10   # 10 min → libera el cupo si no se paga
 MAX_PURCHASES_PER_DAY  = 4
 MAX_TRANSFERS_PER_DAY  = 3
+
+# Fraud thresholds
+_FRAUD_SAME_MATCH_THRESHOLD = 2   # >N paid tickets for same match → suspicious
+_FRAUD_MULTI_RECIPIENT_THRESHOLD = 2  # transfers to >N distinct users today → suspicious
 
 
 class TicketService:
@@ -125,6 +148,7 @@ class TicketService:
             app_logger.info({"event": "ticket_paid", "ticket_id": ticket_id,
                              "user_id": dto.userId, "stripe_intent": payment_result["intent_id"], "audit": True})
 
+            self._check_purchase_fraud(dto.userId, ticket_data["matchId"])
             ticket = self.repository.get_by_id(ticket_id)
 
             try:
@@ -187,6 +211,7 @@ class TicketService:
             app_logger.info({"event": "ticket_transferred", "ticket_id": ticket_id,
                              "from": dto.fromUserId, "to": dto.toUserId,
                              "correlation_id": corr_id, "audit": True})
+            self._check_transfer_fraud(dto.fromUserId)
             return {"success": True, "correlationId": corr_id,
                     "message": "Entrada transferida correctamente"}
         except Exception:
@@ -221,6 +246,39 @@ class TicketService:
         except Exception:
             self.repository.rollback()
             raise
+
+    # ------------------------------------------------------------------
+    # Fraud detection helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _check_purchase_fraud(user_id: int, match_id: int) -> None:
+        from app.domain.models.ticket import Ticket
+        same_match_paid = Ticket.query.filter_by(
+            userId=user_id, matchId=match_id, status='Pagada'
+        ).count()
+        if same_match_paid >= _FRAUD_SAME_MATCH_THRESHOLD:
+            _flag_user_for_fraud(user_id, f"Compró >{_FRAUD_SAME_MATCH_THRESHOLD} entradas pagadas para el mismo partido #{match_id}")
+
+    @staticmethod
+    def _check_transfer_fraud(user_id: int) -> None:
+        from app.domain.models.ticket_history import TicketHistory
+        from app.domain.models.ticket import Ticket
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).replace(tzinfo=None)
+        transfers_today = (
+            TicketHistory.query
+            .join(Ticket, Ticket.ticketId == TicketHistory.idTicket)
+            .filter(
+                TicketHistory.status == 'Transferida',
+                TicketHistory.changedAt >= today_start,
+                Ticket.userId != user_id,
+            )
+            .count()
+        )
+        if transfers_today > _FRAUD_MULTI_RECIPIENT_THRESHOLD:
+            _flag_user_for_fraud(user_id, f"Realizó >{_FRAUD_MULTI_RECIPIENT_THRESHOLD} transferencias hoy")
 
     # ------------------------------------------------------------------
     # Job de expiración: Reservada → Expirada
