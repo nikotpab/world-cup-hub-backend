@@ -46,7 +46,7 @@ def test_audit_log_redacts_secrets(app_context):
         "event": "user_logged_in",
         "user_id": 45,
         "password": "my-secret-password-123",
-        "token": "bearer-token-xyz",
+        "token": "bearer-token-xyz",  # NOSONAR
         "correlation_id": "secret-audit-corr-id",
         "audit": True
     })

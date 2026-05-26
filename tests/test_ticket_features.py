@@ -72,7 +72,7 @@ def test_ticket_purchase_limit(test_user, setup_match, ticket_service):
     # Reserve and pay 4 tickets (the proposed limit of 4)
     # Let's change limit in ticket_service.py to 4 and see if it fails on the 5th
     # We will verify what happens.
-    for i in range(4):
+    for _ in range(4):
         res = ticket_service.reserve_ticket({
             "userId": test_user.idUser,
             "matchId": setup_match.matchId

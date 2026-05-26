@@ -474,12 +474,25 @@ _POSITION_BY_INDEX = {
 
 def _parse(raw: str):
     """Return (clean_name, [panini_codes]) from a cite-annotated string."""
-    m = re.search(r'\[cite:\s*([\d,\s]+)\]', raw)
+    m = re.search(r'\[cite:\s*([0-9, \t]+)\]', raw)
     if not m:
         return raw.strip(), []
     name = raw[: m.start()].strip()
     codes = [int(c.strip()) for c in m.group(1).split(",") if c.strip().isdigit()]
     return name, codes
+
+
+def _process_players(entry, team, add_fn):
+    for idx, raw_player in enumerate(entry["jugadores"]):
+        player_name, player_codes = _parse(raw_player)
+        if not player_codes:
+            continue
+        position = _POSITION_BY_INDEX.get(idx, "FWD")
+        add_fn(name=player_name, category="Player", rarity="Common",
+               team=team, panini_code=player_codes[0], position=position)
+        if len(player_codes) > 1:
+            add_fn(name=player_name, category="Fan Favourite", rarity="Epic",
+                   team=team, panini_code=player_codes[1], position=position)
 
 
 def handler(event, context):
@@ -532,19 +545,7 @@ def handler(event, context):
             _add(name="TEAM CREST", category="Team Crest", rarity="Rare",
                  team=team, panini_code=crest_code)
 
-            for idx, raw_player in enumerate(entry["jugadores"]):
-                player_name, player_codes = _parse(raw_player)
-                if not player_codes:
-                    continue
-                position = _POSITION_BY_INDEX.get(idx, "FWD")
-
-                _add(name=player_name, category="Player", rarity="Common",
-                     team=team, panini_code=player_codes[0], position=position)
-
-                # Second code = Fan Favourite special variant
-                if len(player_codes) > 1:
-                    _add(name=player_name, category="Fan Favourite", rarity="Epic",
-                         team=team, panini_code=player_codes[1], position=position)
+            _process_players(entry, team, _add)
 
         db.session.commit()
         total = Sticker.query.count()
