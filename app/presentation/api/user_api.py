@@ -168,11 +168,14 @@ def update_user_preferences(user_id):
     if not user:
         return jsonify({"error": _ERR_USER_NOT_FOUND}), 404
     data = request.get_json() or {}
-    allowed = {"notif_push", "notif_email", "notif_trades", "notif_matches", "notif_bets"}
+    bool_keys = {"notif_push", "notif_email", "notif_trades", "notif_matches", "notif_bets"}
+    list_keys = {"favorite_teams", "favorite_cities", "favorite_stadiums"}
     current = dict(user.preferences or {})
     for key, value in data.items():
-        if key in allowed and isinstance(value, bool):
+        if key in bool_keys and isinstance(value, bool):
             current[key] = value
+        elif key in list_keys and isinstance(value, list):
+            current[key] = [str(v) for v in value if isinstance(v, (str, int))]
     user.preferences = current
     try:
         db.session.commit()

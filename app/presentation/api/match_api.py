@@ -8,6 +8,7 @@ from app.infrastructure.database import db
 from app.domain.models.match import Match
 from app.domain.models.bet import Bet
 from app.infrastructure.external.notification_service import notification_service
+from app.infrastructure.external.geocoding_service import geocode_stadium, geocode_city
 from pydantic import ValidationError
 
 match_bp = Blueprint('match_bp', __name__)
@@ -44,6 +45,26 @@ def _notify_bet_result(entry: dict, match, home: str, away: str) -> None:
 match_repo = SqlAlchemyMatchRepository()
 match_service = MatchService(match_repo)
 
+
+def _match_to_dict(match: Match) -> dict:
+    from app.domain.models.phase import Phase
+    phases = [p.phaseName for p in Phase.query.filter_by(matchId=match.matchId).all()]
+    return {
+        "matchId":      match.matchId,
+        "status":       match.status,
+        "scheduledAt":  match.scheduledAt.isoformat() if match.scheduledAt else None,
+        "stadiumId":    match.stadiumId,
+        "stadiumName":  match.stadium.name if match.stadium else None,
+        "city":         match.stadium.city.name if match.stadium and match.stadium.city else None,
+        "homeTeamName": match.home_team_name,
+        "awayTeamName": match.away_team_name,
+        "homeGoals":    match.home_goals,
+        "awayGoals":    match.away_goals,
+        "ticketPrice":  match.ticket_price,
+        "phases":       phases,
+    }
+
+
 @match_bp.route('/matches', methods=['POST'])
 def create_match():
     try:
@@ -65,6 +86,15 @@ def get_match(match_id):
 
 @match_bp.route('/matches', methods=['GET'])
 def get_matches():
+    phase_filter = request.args.get('phase', '').strip()
+    if phase_filter:
+        from app.domain.models.phase import Phase
+        phase_match_ids = db.session.query(Phase.matchId).filter(
+            db.func.lower(Phase.phaseName).contains(phase_filter.lower())
+        ).all()
+        ids = [p[0] for p in phase_match_ids]
+        matches = Match.query.filter(Match.matchId.in_(ids)).all()
+        return jsonify([_match_to_dict(m) for m in matches]), 200
     results = match_service.get_all_matches()
     return jsonify([r.model_dump() for r in results]), 200
 
@@ -72,6 +102,103 @@ def get_matches():
 def get_live_matches():
     results = match_service.get_live_matches()
     return jsonify([r.model_dump() for r in results]), 200
+
+
+@match_bp.route('/matches/agenda', methods=['GET'])
+def get_agenda():
+    """
+    Returns upcoming matches filtered by optional city or stadium.
+    Query params: city, stadium, phase
+    """
+    city_name    = request.args.get('city', '').strip()
+    stadium_name = request.args.get('stadium', '').strip()
+    phase_name   = request.args.get('phase', '').strip()
+
+    from app.domain.models.phase import Phase
+    from app.domain.models.stadium import Stadium
+    from app.domain.models.city import City
+
+    query = Match.query.filter(Match.status.in_(['SCHEDULED', 'LIVE']))
+
+    if stadium_name:
+        stadium = Stadium.query.filter(
+            db.func.lower(Stadium.name).contains(stadium_name.lower())
+        ).first()
+        if stadium:
+            query = query.filter(Match.stadiumId == stadium.stadiumId)
+        else:
+            return jsonify([]), 200
+
+    elif city_name:
+        city = City.query.filter(
+            db.func.lower(City.name).contains(city_name.lower())
+        ).first()
+        if city:
+            stadium_ids = [s.stadiumId for s in Stadium.query.filter_by(cityId=city.cityId).all()]
+            query = query.filter(Match.stadiumId.in_(stadium_ids))
+        else:
+            return jsonify([]), 200
+
+    if phase_name:
+        phase_match_ids = db.session.query(Phase.matchId).filter(
+            db.func.lower(Phase.phaseName).contains(phase_name.lower())
+        ).all()
+        ids = [p[0] for p in phase_match_ids]
+        query = query.filter(Match.matchId.in_(ids))
+
+    matches = query.order_by(Match.scheduledAt.asc()).all()
+    return jsonify([_match_to_dict(m) for m in matches]), 200
+
+
+@match_bp.route('/matches/phases', methods=['GET'])
+def get_matches_by_phase():
+    """List all available phases with their match counts."""
+    from app.domain.models.phase import Phase
+    rows = db.session.query(
+        Phase.phaseName, db.func.count(Phase.idPhase)
+    ).group_by(Phase.phaseName).all()
+    return jsonify([{"phase": r[0], "match_count": r[1]} for r in rows]), 200
+
+
+@match_bp.route('/stadiums', methods=['GET'])
+def get_stadiums():
+    """Returns all stadiums with city info and geocoded coordinates."""
+    from app.domain.models.stadium import Stadium
+    from app.domain.models.city import City
+
+    stadiums = Stadium.query.all()
+    result = []
+    for s in stadiums:
+        city_name = s.city.name if s.city else None
+        geo = geocode_stadium(s.name, city_name)
+        entry = {
+            "stadiumId":  s.stadiumId,
+            "name":       s.name,
+            "capacity":   s.capacity,
+            "cityId":     s.cityId,
+            "city":       city_name,
+            "lat":        geo["lat"] if geo else None,
+            "lon":        geo["lon"] if geo else None,
+        }
+        result.append(entry)
+    return jsonify(result), 200
+
+
+@match_bp.route('/cities', methods=['GET'])
+def get_cities():
+    """Returns all host cities with geocoded coordinates."""
+    from app.domain.models.city import City
+    cities = City.query.all()
+    result = []
+    for c in cities:
+        geo = geocode_city(c.name)
+        result.append({
+            "cityId": c.cityId,
+            "name":   c.name,
+            "lat":    geo["lat"] if geo else None,
+            "lon":    geo["lon"] if geo else None,
+        })
+    return jsonify(result), 200
 
 
 @match_bp.route('/matches/<int:match_id>/finalize', methods=['POST'])
