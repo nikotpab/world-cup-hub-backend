@@ -62,13 +62,13 @@ class BetService:
                 notification_service.notify_user_from_id(
                     user_id=dto.userId,
                     title="⚽ ¡Pronóstico Registrado!",
-                    body=f"Tu pronóstico para el partido ha sido confirmado de forma exitosa. ¡Mucha suerte!",
+                    body="Tu pronóstico para el partido ha sido confirmado de forma exitosa. ¡Mucha suerte!",
                     notif_type="bet",
                     reference_id=saved_bet.bet_id,
                     reference_type="bet"
                 )
             except Exception as e:
-                logger.error({"event": "bet_notification_error", "details": str(e)})
+                logger.exception({"event": "bet_notification_error", "details": str(e)})
             
             logger.info({
                 "event": "bet_created", 

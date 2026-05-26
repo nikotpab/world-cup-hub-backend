@@ -8,6 +8,8 @@ from flask import Blueprint, request, Response, jsonify
 
 proxy_bp = Blueprint('proxy_bp', __name__)
 
+_ERR_URL_NOT_ALLOWED = "URL not allowed"
+
 _ALLOWED_HOSTS = frozenset(
     h.strip()
     for h in os.environ.get(
@@ -46,15 +48,15 @@ def proxy_image():
 
     parsed = urlparse(url)
     if parsed.scheme not in ('http', 'https'):
-        return jsonify({"error": "URL not allowed"}), 400
+        return jsonify({"error": _ERR_URL_NOT_ALLOWED}), 400
 
     # Allow if in whitelist OR resolves to a safe public IP
     if parsed.netloc not in _ALLOWED_HOSTS:
         if not _is_safe_public_host(parsed.netloc):
-            return jsonify({"error": "URL not allowed"}), 400
+            return jsonify({"error": _ERR_URL_NOT_ALLOWED}), 400
 
     if '..' in (parsed.path or ''):
-        return jsonify({"error": "URL not allowed"}), 400
+        return jsonify({"error": _ERR_URL_NOT_ALLOWED}), 400
 
     safe_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
     if parsed.query:

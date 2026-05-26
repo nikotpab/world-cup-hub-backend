@@ -11,6 +11,7 @@ from app.infrastructure.logger import app_logger
 _CACHE_KEY = "news:wc2026"
 _CACHE_TTL  = 900   # 15 minutos
 _PAGE_SIZE  = 15
+_FIFA_URL   = "https://www.fifa.com"
 
 # Términos que garantizan relevancia exclusiva al Mundial 2026
 _QUERY = (
@@ -108,7 +109,7 @@ class NewsService:
             {
                 "title": "FIFA confirma los 48 equipos clasificados al Mundial 2026",
                 "description": "La FIFA publicó la lista oficial de selecciones que participarán en la Copa del Mundo 2026, que se celebrará en Estados Unidos, México y Canadá.",
-                "url": "https://www.fifa.com",
+                "url": _FIFA_URL,
                 "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d3/Soccerball.svg",
                 "source": "FIFA",
                 "publishedAt": "2026-01-01T00:00:00Z",
@@ -116,7 +117,7 @@ class NewsService:
             {
                 "title": "Los estadios del Mundial 2026: capacidades y sedes confirmadas",
                 "description": "Dieciséis estadios repartidos entre tres países acogerán los partidos del torneo más grande de la historia del fútbol.",
-                "url": "https://www.fifa.com",
+                "url": _FIFA_URL,
                 "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Estadio_Azteca_interior_2016.jpg/640px-Estadio_Azteca_interior_2016.jpg",
                 "source": "Mundial Hub",
                 "publishedAt": "2026-01-02T00:00:00Z",
@@ -124,7 +125,7 @@ class NewsService:
             {
                 "title": "El formato inédito: 104 partidos y 48 selecciones",
                 "description": "Por primera vez en la historia, el Mundial amplía su formato a 48 equipos distribuidos en 12 grupos de cuatro selecciones.",
-                "url": "https://www.fifa.com",
+                "url": _FIFA_URL,
                 "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Ordinary_world_cup_ball.jpg/640px-Ordinary_world_cup_ball.jpg",
                 "source": "Mundial Hub",
                 "publishedAt": "2026-01-03T00:00:00Z",

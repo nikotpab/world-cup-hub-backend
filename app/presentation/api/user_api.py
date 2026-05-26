@@ -10,6 +10,7 @@ user_bp = Blueprint('user_bp', __name__)
 
 _ERR_DB = "DB error"
 _ERR_FORBIDDEN = "Forbidden"
+_ERR_USER_NOT_FOUND = "User not found"
 
 user_repo = SqlAlchemyUserRepository()
 user_service = UserService(user_repo)
@@ -97,7 +98,7 @@ def update_profile_picture(user_id):
     picture = data.get('profilePicture', '')
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": _ERR_USER_NOT_FOUND}), 404
     user.profilePicture = picture
     try:
         db.session.commit()
@@ -154,7 +155,7 @@ def get_user_preferences(user_id):
         return jsonify({"error": _ERR_FORBIDDEN}), 403
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": _ERR_USER_NOT_FOUND}), 404
     return jsonify(user.preferences or {}), 200
 
 
@@ -165,7 +166,7 @@ def update_user_preferences(user_id):
         return jsonify({"error": _ERR_FORBIDDEN}), 403
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": _ERR_USER_NOT_FOUND}), 404
     data = request.get_json() or {}
     allowed = {"notif_push", "notif_email", "notif_trades", "notif_matches", "notif_bets"}
     current = dict(user.preferences or {})
@@ -192,7 +193,7 @@ def update_fcm_token(user_id):
         return jsonify({"error": "token is required"}), 400
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": _ERR_USER_NOT_FOUND}), 404
     user.fcmToken = token
     try:
         db.session.commit()

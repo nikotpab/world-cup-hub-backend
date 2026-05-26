@@ -29,6 +29,19 @@ class AlbumService:
             return True
         return False
 
+    def _build_collections_map(self, all_stickers, proper_teams: set) -> dict:
+        collections_map = {}
+        for s in all_stickers:
+            if s.category in self._SPECIAL_CATEGORIES or s.team == "WORLD":
+                continue
+            team_key = s.team.upper()
+            if team_key not in proper_teams:
+                continue
+            if team_key not in collections_map:
+                collections_map[team_key] = {"display": team_key.title(), "stickers": set()}
+            collections_map[team_key]["stickers"].add(s.idSticker)
+        return collections_map
+
     def get_user_album(self, user_id: int) -> Dict[str, Any]:
         album = Album.query.filter_by(idUser=user_id).first()
         send_notif = False
@@ -53,44 +66,27 @@ class AlbumService:
                 )
             except Exception as _e:
                 _log.debug({"event": "pack_notification_failed", "details": str(_e)})
-            
+
         all_stickers = album.stickers
-            
         unique_stickers = {s.idSticker for s in all_stickers}
         repeated_stickers_count = len(all_stickers) - len(unique_stickers)
-        
         total_available = Sticker.query.count() or 600
-        
-        # Only show teams that have a full "album" set (i.e. have a Team Crest sticker)
         proper_teams = {
             s.team.upper()
             for s in Sticker.query.filter_by(category="Team Crest").all()
         }
 
-        collections_map = {}
-        for s in all_stickers:
-            # Excluir stickers especiales (no pertenecen a un equipo real)
-            if s.category in self._SPECIAL_CATEGORIES or s.team == "WORLD":
-                continue
-            team_key = s.team.upper()  # normalise: "Argentina" == "ARGENTINA"
-            if team_key not in proper_teams:
-                continue  # skip API-only teams with incomplete sets
-            if team_key not in collections_map:
-                collections_map[team_key] = {"display": team_key.title(), "stickers": set()}
-            collections_map[team_key]["stickers"].add(s.idSticker)
-
+        collections_map = self._build_collections_map(all_stickers, proper_teams)
         flags_map = self._get_flags_mapping()
-        collections_list = []
-        for i, (team_key, data) in enumerate(collections_map.items(), start=1):
-            collections_list.append({
+        collections_list = [
+            {
                 "id": i,
                 "name": data["display"],
                 "count": len(data["stickers"]),
                 "flagUrl": flags_map.get(team_key),
-            })
-
-        if not collections_list:
-            pass
+            }
+            for i, (team_key, data) in enumerate(collections_map.items(), start=1)
+        ]
 
         completion_percentage = 0.0
         if total_available > 0:
@@ -347,6 +343,38 @@ class AlbumService:
         except Exception as _e:
             _log.debug({"event": "milestone_notification_failed", "details": str(_e)})
 
+    def _build_sections_dict(self, all_stickers, proper_teams: set, flags_map: dict, owned_map: dict) -> dict:
+        sections: Dict[str, dict] = {}
+        for s in all_stickers:
+            if s.category in self._SPECIAL_CATEGORIES:
+                key = s.category
+            else:
+                key = s.team.upper()
+                if key not in proper_teams:
+                    continue
+            if key not in sections:
+                sections[key] = self._build_section_entry(key, flags_map)
+            owned_copies = owned_map.get(s.idSticker, 0)
+            sections[key]["stickers"].append({
+                "id":          s.idSticker,
+                "panini_code": s.paniniCode,
+                "name":        s.name,
+                "category":    s.category,
+                "rarity":      s.rarity,
+                "team":        s.team,
+                "position":    s.position,
+                "nationality": s.nationality,
+                "owned":       owned_copies > 0,
+                "copies":      owned_copies,
+            })
+        return sections
+
+    def _section_sort_key(self, s: dict):
+        is_special = s["type"] == "special"
+        primary = 0 if is_special else 1
+        secondary = self._SPECIAL_ORDER.get(s["key"], 99) if is_special else s["key"]
+        return (primary, secondary)
+
     def _build_section_entry(self, key: str, flags_map: dict) -> dict:
         is_special = key in self._SPECIAL_CATEGORIES
         # key is already uppercase for team sections; try uppercase then title-case for flag lookup
@@ -480,35 +508,9 @@ class AlbumService:
             for s in Sticker.query.filter_by(category="Team Crest").all()
         }
 
-        sections: Dict[str, dict] = {}
-        for s in all_stickers:
-            if s.category in self._SPECIAL_CATEGORIES:
-                key = s.category
-            else:
-                key = s.team.upper()  # normalise: "Argentina" → "ARGENTINA"
-                if key not in proper_teams:
-                    continue  # skip API-only teams
-            if key not in sections:
-                sections[key] = self._build_section_entry(key, flags_map)
-            owned_copies = owned_map.get(s.idSticker, 0)
-            sections[key]["stickers"].append({
-                "id":          s.idSticker,
-                "panini_code": s.paniniCode,
-                "name":        s.name,
-                "category":    s.category,
-                "rarity":      s.rarity,
-                "team":        s.team,
-                "position":    s.position,
-                "nationality": s.nationality,
-                "owned":       owned_copies > 0,
-                "copies":      owned_copies,
-            })
-
+        sections = self._build_sections_dict(all_stickers, proper_teams, flags_map, owned_map)
         sections_list = [self._finalize_section(sec) for sec in sections.values()]
-        sections_list.sort(key=lambda s: (
-            0 if s["type"] == "special" else 1,
-            self._SPECIAL_ORDER.get(s["key"], 99) if s["type"] == "special" else s["key"],
-        ))
+        sections_list.sort(key=self._section_sort_key)
 
         total_unique      = len(all_stickers)
         total_owned       = len(owned_map)

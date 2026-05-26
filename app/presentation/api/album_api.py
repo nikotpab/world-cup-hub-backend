@@ -160,51 +160,53 @@ def reject_trade(trade_id):
     return jsonify({"id": trade.id, "status": trade.status}), 200
 
 
+def _build_trade_entry(t, _db):
+    from app.domain.models.sticker import Sticker
+    from app.domain.models.user import User
+    offered_ids = t.offered_sticker_ids or []
+    if not offered_ids:
+        row = _db.session.execute(
+            _db.text("SELECT offered_sticker_id FROM trade_proposal WHERE id = :id"),
+            {"id": t.id}
+        ).fetchone()
+        if row and row[0]:
+            offered_ids = [row[0]]
+    offered_stickers = []
+    for sid in offered_ids:
+        s = Sticker.query.get(sid)
+        if s:
+            offered_stickers.append({
+                "id": s.idSticker, "name": s.name,
+                "team": s.team, "rarity": s.rarity,
+                "photo_url": s.photoUrl,
+            })
+    requested = Sticker.query.get(t.requested_sticker_id)
+    proposer = User.query.get(t.proposer_id)
+    return {
+        "id": t.id,
+        "proposer_email": proposer.email if proposer else None,
+        "proposer_name": f"{proposer.firstName} {proposer.lastName}" if proposer else None,
+        "offered_stickers": offered_stickers,
+        "requested_sticker": {
+            "id": requested.idSticker, "name": requested.name,
+            "team": requested.team, "rarity": requested.rarity,
+            "photo_url": requested.photoUrl,
+        } if requested else None,
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+    }
+
+
 @album_bp.route('/users/<int:user_id>/trades/pending', methods=['GET'])
 @require_auth
 def get_pending_trades(user_id):
     if not _is_self_or_admin(user_id):
         return jsonify({"error": _ERR_FORBIDDEN}), 403
     from app.domain.models.trade_proposal import TradeProposal
-    from app.domain.models.sticker import Sticker
-    from app.domain.models.user import User
+    from app.infrastructure.database import db as _db
     trades = TradeProposal.query.filter_by(
         receiver_id=user_id, status='PENDING_CONFIRMATION'
     ).order_by(TradeProposal.created_at.desc()).all()
-    result = []
-    from app.infrastructure.database import db as _db
-    for t in trades:
-        offered_ids = t.offered_sticker_ids or []
-        if not offered_ids:
-            row = _db.session.execute(
-                _db.text("SELECT offered_sticker_id FROM trade_proposal WHERE id = :id"),
-                {"id": t.id}
-            ).fetchone()
-            if row and row[0]:
-                offered_ids = [row[0]]
-        offered_stickers = []
-        for sid in offered_ids:
-            s = Sticker.query.get(sid)
-            if s:
-                offered_stickers.append({
-                    "id": s.idSticker, "name": s.name,
-                    "team": s.team, "rarity": s.rarity,
-                    "photo_url": s.photoUrl,
-                })
-        requested = Sticker.query.get(t.requested_sticker_id)
-        proposer = User.query.get(t.proposer_id)
-        result.append({
-            "id": t.id,
-            "proposer_email": proposer.email if proposer else None,
-            "proposer_name": f"{proposer.firstName} {proposer.lastName}" if proposer else None,
-            "offered_stickers": offered_stickers,
-            "requested_sticker": {
-                "id": requested.idSticker, "name": requested.name,
-                "team": requested.team, "rarity": requested.rarity,
-                "photo_url": requested.photoUrl,
-            } if requested else None,
-            "created_at": t.created_at.isoformat() if t.created_at else None,
-        })
+    result = [_build_trade_entry(t, _db) for t in trades]
     return jsonify(result), 200
 
 

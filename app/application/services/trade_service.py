@@ -9,6 +9,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _resolve_offered_ids(trade) -> list:
+    offered_ids = trade.offered_sticker_ids or []
+    if not offered_ids:
+        row = db.session.execute(
+            db.text("SELECT offered_sticker_id FROM trade_proposal WHERE id = :id"),
+            {"id": trade.id}
+        ).fetchone()
+        if row and row[0]:
+            offered_ids = [row[0]]
+    return offered_ids
+
+
 class TradeService:
     def __init__(self, repository: ITradeRepository):
         self.repository = repository
@@ -111,15 +123,7 @@ class TradeService:
                 raise ValueError("Álbum de proponente o receptor no encontrado.")
 
             # Verify and transfer all offered stickers: Proposer -> Receiver
-            offered_ids = trade.offered_sticker_ids or []
-            if not offered_ids:
-                # Fallback: read legacy offered_sticker_id column
-                row = db.session.execute(
-                    db.text("SELECT offered_sticker_id FROM trade_proposal WHERE id = :id"),
-                    {"id": trade.id}
-                ).fetchone()
-                if row and row[0]:
-                    offered_ids = [row[0]]
+            offered_ids = _resolve_offered_ids(trade)
             for sid in offered_ids:
                 assoc = db.session.query(sticker_album).filter_by(
                     id_album=proposer_album.idAlbum, id_sticker=sid
