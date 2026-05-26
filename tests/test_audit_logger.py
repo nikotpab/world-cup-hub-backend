@@ -98,12 +98,12 @@ def test_get_user_timeline_includes_correct_logs(app_context):
     
     # Usuario 99 debe tener 2 eventos ordenados por fecha descendente (el mas nuevo primero)
     assert len(timeline_99) == 2
-    assert timeline_99[0]["type"] == "sports_bet_placed"
-    assert timeline_99[1]["type"] == "ticket_reserved"
-    
+    assert timeline_99[0]["action"] == "sports_bet_placed"
+    assert timeline_99[1]["action"] == "ticket_reserved"
+
     # Usuario 88 debe tener 1 evento
     assert len(timeline_88) == 1
-    assert timeline_88[0]["type"] == "ticket_paid"
+    assert timeline_88[0]["action"] == "ticket_paid"
 
 def test_audit_logger_uses_independent_session(app_context):
     from unittest.mock import patch, MagicMock
