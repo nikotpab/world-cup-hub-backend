@@ -64,4 +64,10 @@ def logout():
                 redis_client.set(f"blacklist_{jti}", "1", ex=86400)
         except Exception as _e:
             _log.warning({"event": "jwt_blacklist_failed", "details": str(_e)})
+    from app.infrastructure.logger import app_logger
+    from datetime import datetime, timezone
+    app_logger.info({
+        "event": "user_logout", "timestamp": datetime.now(timezone.utc).isoformat(),
+        "audit": True,
+    })
     return jsonify({"ok": True}), 200
