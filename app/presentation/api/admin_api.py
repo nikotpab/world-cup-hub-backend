@@ -124,6 +124,16 @@ def test_email():
         return jsonify({"error": "ERR_SMTP", "message": str(e)}), 500
 
 
+@admin_bp.route('/admin/audit-log', methods=['GET'])
+@require_role([1])
+def get_audit_log():
+    user_id_str = request.args.get('user_id')
+    limit = int(request.args.get('limit', 100))
+    user_id = int(user_id_str) if user_id_str and user_id_str.isdigit() else None
+    results = admin_service.get_audit_log(user_id=user_id, limit=limit)
+    return jsonify(results), 200
+
+
 @admin_bp.route('/admin/settings/datasource', methods=['PUT'])
 @require_role([1])
 def set_data_source():

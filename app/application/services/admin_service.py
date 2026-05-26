@@ -42,10 +42,13 @@ class AdminService:
     def get_timeline(self, user_id: int) -> List[Dict[str, Any]]:
         return self.repository.get_user_timeline(user_id)
 
-    def get_compliance_report(self) -> List[Dict[str, Any]]:
+    def get_compliance_report(self) -> Dict[str, Any]:
         logger.info({"event": "compliance_report_requested",
                      "timestamp": datetime.now(timezone.utc).isoformat()})
         return self.repository.generate_compliance_report()
+
+    def get_audit_log(self, user_id=None, limit: int = 100) -> List[Dict[str, Any]]:
+        return self.repository.get_audit_log(user_id=user_id, limit=limit)
 
     def broadcast_news(self, data: dict) -> dict:
         dto = NewsCreateDTO(**data)

@@ -69,63 +69,83 @@ class SqlAlchemyAdminRepository(IAdminRepository):
                 payload = json.loads(a.payload) if a.payload else {}
                 if payload.get("user_id") == user_id or payload.get("userId") == user_id:
                     timeline.append({
-                        "eventId": a.idAudit,
-                        "type": a.action,
-                        "date": a.createdAt.isoformat() if a.createdAt else None,
-                        "description": f"{a.action} on {a.affectedEntity} (Result: {a.result})",
+                        "idAudit": a.idAudit,
+                        "correlationId": a.correlationId or "",
+                        "createdAt": a.createdAt.isoformat() if a.createdAt else None,
+                        "payload": a.payload or "{}",
+                        "affectedEntity": a.affectedEntity or "",
+                        "action": a.action or "",
+                        "result": a.result or "",
                     })
             except Exception as exc:
                 _log.debug({"event": "timeline_entry_failed", "details": str(exc)})
         return timeline
 
     # ------------------------------------------------------------------
+    # Audit log (global, optional user filter)
+    # ------------------------------------------------------------------
+
+    def get_audit_log(self, user_id=None, limit: int = 100) -> List[Dict[str, Any]]:
+        import json
+        from app.domain.models.audit import Audit
+        query = Audit.query.order_by(Audit.createdAt.desc(), Audit.idAudit.desc())
+        if user_id is not None:
+            # Filter to events that reference this user in their payload
+            all_audits = query.all()
+            results = []
+            for a in all_audits:
+                try:
+                    payload = json.loads(a.payload) if a.payload else {}
+                    if (payload.get("user_id") == user_id
+                            or payload.get("userId") == user_id
+                            or payload.get("user_id") == str(user_id)):
+                        results.append(a)
+                except Exception:
+                    pass
+                if len(results) >= limit:
+                    break
+            audits = results
+        else:
+            audits = query.limit(limit).all()
+        return [
+            {
+                "idAudit": a.idAudit,
+                "correlationId": a.correlationId or "",
+                "createdAt": a.createdAt.isoformat() if a.createdAt else None,
+                "payload": a.payload or "{}",
+                "affectedEntity": a.affectedEntity or "",
+                "action": a.action or "",
+                "result": a.result or "",
+            }
+            for a in audits
+        ]
+
+    # ------------------------------------------------------------------
     # Compliance report
     # ------------------------------------------------------------------
 
-    def generate_compliance_report(self) -> List[Dict[str, Any]]:
+    def generate_compliance_report(self) -> Dict[str, Any]:
         from app.domain.models.ticket import Ticket
-        from app.domain.models.trade_proposal import TradeProposal
+        from sqlalchemy import func
 
-        total_users    = User.query.count()
-        active_users   = User.query.filter_by(accountStatus='activo').count()
-        blocked_users  = User.query.filter_by(accountStatus='bloqueado').count()
-        flagged_users  = User.query.filter_by(accountStatus='flagged').count()
+        total_users      = User.query.count()
+        active_users     = User.query.filter_by(accountStatus='activo').count()
+        total_tickets    = Ticket.query.count()
+        paid_tickets     = Ticket.query.filter_by(status='Pagada').count()
+        reserved_tickets = Ticket.query.filter_by(status='Reservada').count()
 
-        total_tickets  = Ticket.query.count()
-        paid_tickets   = Ticket.query.filter_by(status='Pagada').count()
-        expired_tickets = Ticket.query.filter_by(status='Expirada').count()
-        transferred    = Ticket.query.filter_by(status='Transferida').count()
-        refunded       = Ticket.query.filter_by(status='Reembolsada').count()
+        total_revenue = db.session.query(
+            func.coalesce(func.sum(Ticket.price), 0)
+        ).filter(Ticket.status == 'Pagada').scalar() or 0
 
-        today_start = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        ).replace(tzinfo=None)
-        tickets_today = Ticket.query.filter(
-            Ticket.paidAt >= today_start
-        ).count()
-        transfers_today = Ticket.query.filter(
-            Ticket.status == 'Transferida',
-            Ticket.paidAt >= today_start,
-        ).count()
-
-        pending_trades = TradeProposal.query.filter_by(status='PENDING_CONFIRMATION').count()
-        completed_trades = TradeProposal.query.filter_by(status='COMPLETED').count()
-
-        return [
-            {"metric": "Total Usuarios", "value": total_users},
-            {"metric": "Usuarios Activos", "value": active_users},
-            {"metric": "Usuarios Bloqueados", "value": blocked_users},
-            {"metric": "Usuarios Flaggeados (antifraude)", "value": flagged_users},
-            {"metric": "Total Entradas", "value": total_tickets},
-            {"metric": "Entradas Pagadas", "value": paid_tickets},
-            {"metric": "Entradas Expiradas", "value": expired_tickets},
-            {"metric": "Entradas Transferidas", "value": transferred},
-            {"metric": "Entradas Reembolsadas", "value": refunded},
-            {"metric": "Compras Hoy", "value": tickets_today},
-            {"metric": "Transferencias Hoy", "value": transfers_today},
-            {"metric": "Intercambios Álbum Pendientes", "value": pending_trades},
-            {"metric": "Intercambios Álbum Completados", "value": completed_trades},
-        ]
+        return {
+            "total_users": total_users,
+            "active_users": active_users,
+            "total_tickets": total_tickets,
+            "paid_tickets": paid_tickets,
+            "reserved_tickets": reserved_tickets,
+            "total_revenue": float(total_revenue),
+        }
 
     # ------------------------------------------------------------------
     # Broadcast news

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 class IAdminRepository(ABC):
@@ -20,7 +20,11 @@ class IAdminRepository(ABC):
         pass
 
     @abstractmethod
-    def generate_compliance_report(self) -> List[Dict[str, Any]]:
+    def generate_compliance_report(self) -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
+    def get_audit_log(self, user_id: Optional[int] = None, limit: int = 100) -> List[Dict[str, Any]]:
         pass
 
     @abstractmethod
