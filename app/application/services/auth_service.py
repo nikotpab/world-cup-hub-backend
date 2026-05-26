@@ -72,6 +72,13 @@ class AuthService:
         self.user_repository.save(user_data)
         email_sent = self._send_verification_email(email, verification_code)
 
+        from app.infrastructure.logger import app_logger
+        from datetime import datetime, timezone
+        app_logger.info({
+            "event": "user_registered", "email": email,
+            "timestamp": datetime.now(timezone.utc).isoformat(), "audit": True,
+        })
+
         return {
             "success": True,
             "message": "Usuario registrado. Revisa tu correo para el código de verificación.",
@@ -156,6 +163,14 @@ class AuthService:
             "exp": datetime.now(timezone.utc) + timedelta(hours=24),
         }
         token = jwt.encode(payload, secret_key, algorithm="HS256")
+
+        from app.infrastructure.logger import app_logger
+        from datetime import datetime, timezone
+        app_logger.info({
+            "event": "user_login", "user_id": user.get("userId"),
+            "email": email, "role_id": user.get("roleId"),
+            "timestamp": datetime.now(timezone.utc).isoformat(), "audit": True,
+        })
 
         return {
             "token": token,

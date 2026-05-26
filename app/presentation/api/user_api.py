@@ -105,6 +105,12 @@ def update_profile_picture(user_id):
     except Exception as exc:
         db.session.rollback()
         return jsonify({"error": _ERR_DB, "details": str(exc)}), 500
+    from app.infrastructure.logger import app_logger
+    from datetime import datetime, timezone
+    app_logger.info({
+        "event": "profile_picture_updated", "user_id": user_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(), "audit": True,
+    })
     return jsonify({"ok": True, "user_id": user_id, "profilePicture": user.profilePicture}), 200
 
 
